@@ -122,7 +122,7 @@ export const AddTemplateSourceModal: React.FC<ModalComponentProps &
       : null,
   );
   const isSCAvailable = storageClasses?.length > 0;
-
+  const withUpload = true; // to be dynamic in future?
   const { dataSource, file, isValid } = state;
 
   const onSubmit = async () => {
@@ -241,12 +241,13 @@ export const AddTemplateSourceModal: React.FC<ModalComponentProps &
                 <BootSourceForm
                   state={state}
                   dispatch={dispatch}
-                  withUpload
+                  withUpload={withUpload}
                   disabled={isCheckingCert}
                   storageClasses={storageClasses}
                   storageClassesLoaded={scLoaded}
                   scAllowed={scAllowed}
                   scAllowedLoading={scAllowedLoading}
+                  baseImageName={baseImageName}
                 />
               </StackItem>
               {!isSCAvailable && scLoaded && (
@@ -255,7 +256,7 @@ export const AddTemplateSourceModal: React.FC<ModalComponentProps &
                     variant="danger"
                     isInline
                     title={t(
-                      'kubevirt-plugin~ No Storage classes found in cluster, adding source is disabled.',
+                      'kubevirt-plugin~No Storage classes found in cluster, adding source is disabled.',
                     )}
                   />
                 </StackItem>
@@ -269,7 +270,7 @@ export const AddTemplateSourceModal: React.FC<ModalComponentProps &
                   )}
                 >
                   {t(
-                    "kubevirt-plugin~For customizing boot source, select 'Customize boot source' from the template actions menu.",
+                    'kubevirt-plugin~For customizing boot source, select "Customize boot source" from the template actions menu.',
                   )}
                 </Alert>
               </StackItem>
@@ -298,7 +299,9 @@ export const AddTemplateSourceModal: React.FC<ModalComponentProps &
             </Button>
             <Button
               variant="primary"
-              isDisabled={!isValid || isSubmitting || !isSCAvailable}
+              isDisabled={
+                !isValid || isSubmitting || !isSCAvailable || (withUpload && !state?.provider)
+              }
               data-test="confirm-action"
               id="confirm-action"
               onClick={onSubmit}

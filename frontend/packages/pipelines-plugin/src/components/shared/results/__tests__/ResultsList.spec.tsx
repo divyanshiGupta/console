@@ -6,14 +6,6 @@ import ResultsList, { ResultsListProps } from '../ResultsList';
 import { runStatus } from '../../../../utils/pipeline-augment';
 import { taskRunWithResults } from '../../../taskruns/__tests__/taskrun-test-data';
 
-jest.mock('react-i18next', () => {
-  const reactI18next = require.requireActual('react-i18next');
-  return {
-    ...reactI18next,
-    useTranslation: () => ({ t: (key) => key }),
-  };
-});
-
 describe('ResultsList', () => {
   let resultsListWrapper: ShallowWrapper<ResultsListProps>;
   let resultsListProps: ResultsListProps;
@@ -21,7 +13,7 @@ describe('ResultsList', () => {
   beforeEach(() => {
     resultsListProps = {
       status: runStatus.Succeeded,
-      resourceName: 'Task Run',
+      resourceName: 'TaskRun',
       results: taskRunWithResults.status.taskResults,
     };
     resultsListWrapper = shallow(<ResultsList {...resultsListProps} />);
@@ -34,7 +26,7 @@ describe('ResultsList', () => {
   it('Should render an EmptyState instead', () => {
     resultsListProps = {
       status: runStatus.Failed,
-      resourceName: 'Task Run',
+      resourceName: 'TaskRun',
       results: taskRunWithResults.status.taskResults,
     };
     resultsListWrapper = shallow(<ResultsList {...resultsListProps} />);

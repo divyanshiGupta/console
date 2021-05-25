@@ -4,19 +4,21 @@ import { addPage } from './add-page';
 import { addOptions, catalogCards, catalogTypes } from '../../constants/add';
 import { topologyHelper } from '@console/topology/integration-tests/support/pages/topology/topology-helper-page';
 import { helmPO } from '../../pageObjects/helm-po';
-import { app } from '../app';
+import { app, navigateTo } from '../app';
 import { detailsPage } from '../../../../../integration-tests-cypress/views/details-page';
+import { devNavigationMenu } from '../../constants';
 
 export const catalogPage = {
   verifyTitle: () => detailsPage.titleShouldContain('Developer Catalog'),
   verifyPageTitle: (page: string) => detailsPage.titleShouldContain(page),
   isCheckBoxSelected: (type: string) => cy.get(`input[title="${type}"]`).should('be.checked'),
   isCardsDisplayed: () => cy.get(catalogPO.card).should('be.visible'),
-  search: (keyword: string) =>
-    cy
-      .get(catalogPO.search)
+  search: (keyword: string) => {
+    cy.get('.skeleton-catalog--grid').should('not.exist');
+    cy.get(catalogPO.search)
       .clear()
-      .type(keyword),
+      .type(keyword);
+  },
   verifyDialog: () => cy.get(catalogPO.sidePane.dialog).should('be.visible'),
   verifyInstallHelmChartPage: () =>
     cy
@@ -57,7 +59,12 @@ export const catalogPage = {
       }
       case catalogTypes.ManagedServices:
       case 'Managed Services': {
-        cy.get(catalogPO.catalogTypes.managedServices).check();
+        cy.get(catalogPO.catalogTypes.managedServices).click();
+        break;
+      }
+      case catalogTypes.EventSources:
+      case 'Event Sources': {
+        cy.get(catalogPO.catalogTypes.eventSources).click();
         break;
       }
       default: {
@@ -66,41 +73,11 @@ export const catalogPage = {
     }
   },
   selectTemplateTypes: (type: string | catalogTypes) => {
-    switch (type) {
-      case 'CI/CD': {
-        cy.get('li.vertical-tabs-pf-tab.shown.text-capitalize.co-catalog-tab__empty')
-          .contains('CI/CD')
-          .click();
-        break;
-      }
-      case 'Databases': {
-        cy.get('li.vertical-tabs-pf-tab.shown.text-capitalize.co-catalog-tab__empty')
-          .contains('Databases')
-          .click();
-        break;
-      }
-      case 'Languages': {
-        cy.get('li.vertical-tabs-pf-tab.shown.text-capitalize.co-catalog-tab__empty')
-          .contains('Languages')
-          .click();
-        break;
-      }
-      case 'Middleware': {
-        cy.get('li.vertical-tabs-pf-tab.shown.text-capitalize.co-catalog-tab__empty')
-          .contains('Middleware')
-          .click();
-        break;
-      }
-      case 'Other': {
-        cy.get('li.vertical-tabs-pf-tab.shown.text-capitalize.co-catalog-tab__empty')
-          .contains('Other')
-          .click();
-        break;
-      }
-      default: {
-        throw new Error("Couldn't find that type");
-      }
-    }
+    cy.get(catalogPO.catalogTypeLink)
+      .contains(type)
+      .scrollIntoView()
+      .click();
+    cy.log(`Select ${type} from Types section`);
   },
   selectKnativeServingCard: () =>
     cy
@@ -122,6 +99,7 @@ export const catalogPage = {
       .clear()
       .type(releaseName),
   selectCardInCatalog: (card: catalogCards | string) => {
+    cy.get('.skeleton-catalog--grid').should('not.exist');
     cy.byLegacyTestID('perspective-switcher-toggle').click();
     switch (card) {
       case catalogCards.mariaDB || 'MariaDB': {
@@ -148,11 +126,19 @@ export const catalogPage = {
         cy.get(catalogPO.cards.nginxHTTPServer).click();
         break;
       }
+      case catalogCards.knativeKafka: {
+        cy.get(catalogPO.cards.knativeKafka).click();
+        break;
+      }
       case catalogCards.jenkins: {
         cy.get('div.catalog-tile-pf-title')
           .contains('Jenkins')
           .first()
           .click();
+        break;
+      }
+      case 'Nodejs Ex K v0.2.1': {
+        cy.get(catalogPO.cards.helmNodejs).click();
         break;
       }
       default: {
@@ -194,6 +180,7 @@ export const catalogPage = {
     releaseName: string = 'nodejs-ex-k',
     helmChartName: string = 'Nodejs Ex K v0.2.1',
   ) => {
+    navigateTo(devNavigationMenu.Add);
     app.waitForDocumentLoad();
     addPage.selectCardFromOptions(addOptions.HelmChart);
     catalogPage.verifyPageTitle('Helm Charts');
@@ -207,6 +194,35 @@ export const catalogPage = {
     catalogPage.clickOnInstallButton();
     app.waitForDocumentLoad();
     topologyHelper.verifyWorkloadInTopologyPage(releaseName);
+  },
+  verifyCategories: () => {
+    const categories = ['All items', 'CI/CD', 'Databases', 'Languages', 'Middleware', 'Other'];
+    cy.get(
+      'ul.vertical-tabs-pf.restrict-tabs li.vertical-tabs-pf-tab.shown.text-capitalize.co-catalog-tab__empty >a',
+    ).each(($el) => {
+      expect(categories).toContain($el.text());
+    });
+  },
+  verifyTypes: () => {
+    const categories = [
+      'Builder Images',
+      'Devfiles',
+      'Event Sources',
+      'Helm Charts',
+      'Operator Backed',
+      'Templates',
+    ];
+    cy.get('ul.vertical-tabs-pf.restrict-tabs')
+      .eq(6)
+      .find('li a')
+      .each(($el) => {
+        expect(categories).toContain($el.text());
+      });
+  },
+  verifyCardTypeOfAllCards: (cardType: string) => {
+    cy.get(catalogPO.card).each(($card) => {
+      expect($card.find(catalogPO.cardBadge).text()).toContain(cardType);
+    });
   },
 };
 

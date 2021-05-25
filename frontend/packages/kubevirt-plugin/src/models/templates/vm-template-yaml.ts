@@ -17,7 +17,7 @@ metadata:
     name.os.template.kubevirt.io/fedora31: Fedora 31
     description: VM template example
 objects:
-  - apiVersion: kubevirt.io/v1alpha3
+  - apiVersion: kubevirt.io/v1
     kind: VirtualMachine
     metadata:
       labels:
@@ -59,7 +59,7 @@ objects:
           volumes:
             - name: containerdisk
               containerDisk:
-                image: 'kubevirt/fedora-cloud-container-disk-demo:latest'
+                image: 'quay.io/kubevirt/fedora-cloud-container-disk-demo:latest'
             - cloudInitNoCloud:
                 userData: |-
                   #cloud-config
@@ -73,3 +73,5 @@ parameters:
     required: true
 `,
 );
+
+export const defaultVMTemplateYamlTemplate = VMTemplateYAMLTemplates.getIn(['vm-template']);

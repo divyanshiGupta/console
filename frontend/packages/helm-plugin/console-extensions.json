@@ -6,6 +6,7 @@
     },
     "properties": {
       "id": "helm",
+      "groupId": "developer-catalog",
       "href": "/catalog?catalogType=HelmChart",
       "label": "%helm-plugin~Helm Chart%",
       "description": "%helm-plugin~Browse the catalog to discover and install Helm Charts%",
@@ -23,6 +24,10 @@
         {
           "label": "%helm-plugin~Chart Repositories%",
           "attribute": "chartRepositoryTitle"
+        },
+        {
+          "label": "%helm-plugin~Source%",
+          "attribute": "providerType"
         }
       ]
     },
@@ -36,6 +41,35 @@
       "catalogId": "dev-catalog",
       "type": "HelmChart",
       "provider": { "$codeRef": "catalog.helmChartProvider" }
+    },
+    "flags": {
+      "required": ["OPENSHIFT_HELM"]
+    }
+  },
+  {
+    "type": "console.action/provider",
+    "properties": {
+      "contextId": "helm-actions",
+      "provider": { "$codeRef": "actions.useHelmActionProvider" }
+    },
+    "flags": {
+      "required": ["OPENSHIFT_HELM"]
+    }
+  },
+  {
+    "type": "console.navigation/href",
+    "properties": {
+      "id": "helm",
+      "perspective": "dev",
+      "section": "resources",
+      "insertBefore": "project",
+      "name": "%helm-plugin~Helm%",
+      "href": "/helm-releases",
+      "namespaced": true,
+      "dataAttributes": {
+        "data-quickstart-id": "qs-nav-helm",
+        "data-test-id": "helm-releases-header"
+      }
     },
     "flags": {
       "required": ["OPENSHIFT_HELM"]

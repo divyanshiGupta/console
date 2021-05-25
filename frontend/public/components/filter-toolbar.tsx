@@ -5,11 +5,10 @@ import { connect } from 'react-redux';
 import {
   Badge,
   Button,
-  Checkbox,
-  Dropdown,
-  DropdownGroup,
-  DropdownItem,
-  DropdownToggle,
+  Select,
+  SelectGroup,
+  SelectOption,
+  SelectVariant,
   Toolbar,
   ToolbarChip,
   ToolbarContent,
@@ -17,7 +16,7 @@ import {
   ToolbarItem,
   Tooltip,
 } from '@patternfly/react-core';
-import { CaretDownIcon, FilterIcon, ColumnsIcon } from '@patternfly/react-icons';
+import { FilterIcon, ColumnsIcon } from '@patternfly/react-icons';
 import { Dropdown as DropdownInternal } from '@console/internal/components/utils';
 import { useTranslation } from 'react-i18next';
 
@@ -54,33 +53,25 @@ const getDropdownItems = (rowFilters: RowFilter[], selectedItems, data, props) =
   rowFilters.map((grp) => {
     const items = grp.itemsGenerator ? grp.itemsGenerator(props, props.kind) : grp.items;
     return (
-      <DropdownGroup
-        key={grp.filterGroupName}
-        label={grp.filterGroupName}
-        className="co-filter-dropdown-group"
-      >
-        {_.map(items, (item) => (
-          <DropdownItem
-            data-test-row-filter={item.id}
-            key={item.id}
-            id={item.id}
-            className="co-filter-dropdown__item"
-            listItemClassName="co-filter-dropdown__list-item"
-          >
-            <div className="co-filter-dropdown-item">
-              <span className="co-filter-dropdown-item__checkbox">
-                <Checkbox isChecked={selectedItems.includes(item.id)} id={`${item.id}-checkbox`} />
-              </span>
+      <SelectGroup key={grp.filterGroupName} label={grp.filterGroupName}>
+        {_.map(items, (item) => {
+          return (
+            <SelectOption
+              data-test-row-filter={item.id}
+              key={item.id}
+              inputId={item.id}
+              value={item.id}
+            >
               <span className="co-filter-dropdown-item__name">{item.title}</span>
               <Badge key={item.id} isRead>
                 {grp.isMatch
                   ? _.filter(data, (d) => grp.isMatch(d, item.id)).length
                   : _.countBy(data, grp.reducer)?.[item.id] ?? '0'}
               </Badge>
-            </div>
-          </DropdownItem>
-        ))}
-      </DropdownGroup>
+            </SelectOption>
+          );
+        })}
+      </SelectGroup>
     );
   });
 
@@ -104,16 +95,16 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
   const translateFilterType = (value: string) => {
     switch (value) {
       case 'Name':
-        return t('filter-toolbar~Name');
+        return t('public~Name');
       case 'Label':
-        return t('filter-toolbar~Label');
+        return t('public~Label');
       default:
         return value;
     }
   };
   const filterDropdownItems = {
-    NAME: t('filter-toolbar~Name'),
-    LABEL: t('filter-toolbar~Label'),
+    NAME: t('public~Name'),
+    LABEL: t('public~Label'),
   };
 
   // use unique name only when only when more than 1 table is in the view
@@ -124,7 +115,7 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
   const [filterType, setFilterType] = React.useState(FilterType.NAME);
   const [isOpen, setOpen] = React.useState(false);
   const [placeholder, setPlaceholder] = React.useState(
-    nameFilterPlaceholder || t('filter-toolbar~Search by name...'),
+    nameFilterPlaceholder || t('public~Search by name...'),
   );
 
   // (rowFilters) => {'rowFilterTypeA': ['staA', 'staB'], 'rowFilterTypeB': ['stbA'] }
@@ -241,7 +232,6 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
     const selectedNew = _.xor(selectedRowFilters, id);
     applyRowFilter(selectedNew);
     setQueryParameters(selectedNew);
-    setOpen(false);
   };
 
   const clearAllRowFilter = (f: string) => {
@@ -249,7 +239,6 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
   };
 
   const onRowFilterSelect = (event) => {
-    event.preventDefault();
     updateRowFilterSelected([event?.target?.id]);
   };
 
@@ -284,10 +273,10 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
     setFilterType(FilterType[type]);
     switch (FilterType[type]) {
       case 'Name':
-        setPlaceholder(nameFilterPlaceholder || t('filter-toolbar~Search by name...'));
+        setPlaceholder(nameFilterPlaceholder || t('public~Search by name...'));
         break;
       case 'Label':
-        setPlaceholder(labelFilterPlaceholder || t('filter-toolbar~Search by label...'));
+        setPlaceholder(labelFilterPlaceholder || t('public~Search by label...'));
         break;
       default:
         setPlaceholder('app=frontend');
@@ -301,10 +290,10 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
       data-test="filter-toolbar"
       id="filter-toolbar"
       clearAllFilters={clearAll}
-      clearFiltersButtonText={t('filter-toolbar~Clear all filters')}
+      clearFiltersButtonText={t('public~Clear all filters')}
     >
       <ToolbarContent>
-        {rowFilters?.length && (
+        {rowFilters?.length > 0 && (
           <ToolbarItem>
             {_.reduce(
               Object.keys(filters),
@@ -321,21 +310,27 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
                   {acc}
                 </ToolbarFilter>
               ),
-              <Dropdown
-                dropdownItems={dropdownItems}
-                onSelect={onRowFilterSelect}
-                isOpen={isOpen}
-                toggle={
-                  <DropdownToggle
-                    data-test-id="filter-dropdown-toggle"
-                    onToggle={() => setOpen(!isOpen)}
-                    toggleIndicator={CaretDownIcon}
-                  >
-                    <FilterIcon className="span--icon__right-margin" />
-                    {t('filter-toolbar~Filter')}
-                  </DropdownToggle>
-                }
-              />,
+              <div data-test-id="filter-dropdown-toggle">
+                <Select
+                  placeholderText={
+                    <span>
+                      <FilterIcon className="span--icon__right-margin" />
+                      {t('public~Filter')}
+                    </span>
+                  }
+                  isOpen={isOpen}
+                  onToggle={() => {
+                    setOpen(!isOpen);
+                  }}
+                  onSelect={onRowFilterSelect}
+                  variant={SelectVariant.checkbox}
+                  selections={selectedRowFilters}
+                  isCheckboxSelectionBadgeHidden
+                  isGrouped
+                >
+                  {dropdownItems}
+                </Select>
+              </div>,
             )}
           </ToolbarItem>
         )}
@@ -347,12 +342,12 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
               deleteChip={(filter, chip: string) =>
                 updateLabelFilter(_.difference(labelFilters, [chip]))
               }
-              categoryName={t('filter-toolbar~Label')}
+              categoryName={t('public~Label')}
             >
               <ToolbarFilter
                 chips={nameFilter && nameFilter.length > 0 ? [nameFilter] : []}
                 deleteChip={() => updateNameFilter('')}
-                categoryName={t('filter-toolbar~Name')}
+                categoryName={t('public~Name')}
               >
                 <div className="pf-c-input-group">
                   {!hideLabelFilter && (
@@ -382,7 +377,7 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
         )}
         {columnLayout?.id && !hideColumnManagement && (
           <ToolbarItem>
-            <Tooltip content={t('filter-toolbar~Manage columns')}>
+            <Tooltip content={t('public~Manage columns')}>
               <Button
                 variant="plain"
                 onClick={() =>
@@ -390,7 +385,7 @@ const FilterToolbar_: React.FC<FilterToolbarProps & RouteComponentProps> = (prop
                     columnLayout,
                   })
                 }
-                aria-label={t('filter-toolbar~Column management')}
+                aria-label={t('public~Column management')}
               >
                 <ColumnsIcon />
               </Button>

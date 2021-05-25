@@ -4,8 +4,9 @@ import { TemplateKind } from '@console/internal/module/k8s';
 
 import { createSupportModal } from '../components/modals/support-modal/support-modal';
 import { TEMPLATE_WARN_SUPPORT } from '../constants';
-import { getTemplateSupport } from '../selectors/vm-template/basic';
+import { getTemplateSupport, isCommonTemplate } from '../selectors/vm-template/basic';
 import { useLocalStorage } from './use-local-storage';
+import { isUpstream } from '../utils/common';
 
 export type SupportModalFunction = (template: TemplateKind, onConfirm: VoidFunction) => void;
 
@@ -13,10 +14,10 @@ export const useSupportModal = (): SupportModalFunction => {
   const [warnSupport, setWarnSupport] = useLocalStorage(TEMPLATE_WARN_SUPPORT);
   return React.useCallback<SupportModalFunction>(
     (template, onConfirm) => {
-      const isUpstream = window.SERVER_FLAGS.branding === 'okd';
       const templateSupport = getTemplateSupport(template);
+      const commonTemplat = isCommonTemplate(template);
       const showSupportModal =
-        !isUpstream &&
+        !isUpstream() &&
         template &&
         templateSupport.provider !== 'Full' &&
         templateSupport.parent !== 'Full';
@@ -31,6 +32,7 @@ export const useSupportModal = (): SupportModalFunction => {
         : createSupportModal({
             onConfirm: onModalConfirm,
             communityURL: templateSupport.providerURL || templateSupport.parentURL,
+            isCommonTemplate: commonTemplat,
           });
     },
     [setWarnSupport, warnSupport],

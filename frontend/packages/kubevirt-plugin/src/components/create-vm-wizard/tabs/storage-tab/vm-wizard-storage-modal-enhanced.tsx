@@ -21,10 +21,17 @@ import { TemplateValidations } from '../../../../utils/validations/template/temp
 import { DiskModal } from '../../../modals/disk-modal';
 import { vmWizardActions } from '../../redux/actions';
 import { ActionType } from '../../redux/types';
-import { iGetCommonData } from '../../selectors/immutable/selectors';
+import { getInitialData, iGetCommonData } from '../../selectors/immutable/selectors';
 import { getStorages } from '../../selectors/selectors';
 import { getTemplateValidation } from '../../selectors/template';
-import { VMWizardProps, VMWizardStorage, VMWizardStorageType } from '../../types';
+import {
+  ImportProvidersField,
+  VMImportProvider,
+  VMWizardProps,
+  VMWizardStorage,
+  VMWizardStorageType,
+} from '../../types';
+import { iGetImportProvidersValue } from '../../selectors/immutable/import-providers';
 
 const VMWizardStorageModal: React.FC<VMWizardStorageModalProps> = (props) => {
   const {
@@ -36,6 +43,8 @@ const VMWizardStorageModal: React.FC<VMWizardStorageModalProps> = (props) => {
     storages,
     templateValidations,
     storageClassConfigMap,
+    importProvider,
+    commonTemplateName,
     ...restProps
   } = props;
   const { type, disk, volume, dataVolume, persistentVolumeClaim, editConfig } = storage || {};
@@ -98,11 +107,13 @@ const VMWizardStorageModal: React.FC<VMWizardStorageModalProps> = (props) => {
         disk={new DiskWrapper(disk, true)}
         volume={new VolumeWrapper(volume, true)}
         dataVolume={dataVolume && new DataVolumeWrapper(dataVolume, true)}
+        importProvider={importProvider}
         persistentVolumeClaim={
           persistentVolumeClaim && new PersistentVolumeClaimWrapper(persistentVolumeClaim, true)
         }
         isTemplate={isCreateTemplate}
         editConfig={editConfig}
+        baseImageName={commonTemplateName}
         onSubmit={(
           resultDiskWrapper,
           resultVolumeWrapper,
@@ -143,6 +154,8 @@ type VMWizardStorageModalProps = ModalComponentProps & {
   storages: VMWizardStorage[];
   addUpdateStorage: (storage: VMWizardStorage) => void;
   templateValidations: TemplateValidations;
+  importProvider?: VMImportProvider;
+  commonTemplateName: string;
 };
 
 const stateToProps = (state, { wizardReduxID }) => {
@@ -156,6 +169,8 @@ const stateToProps = (state, { wizardReduxID }) => {
     ),
     storages: getStorages(state, wizardReduxID),
     templateValidations: getTemplateValidation(state, wizardReduxID),
+    importProvider: iGetImportProvidersValue(state, wizardReduxID, ImportProvidersField.PROVIDER),
+    commonTemplateName: getInitialData(state, wizardReduxID).commonTemplateName,
   };
 };
 

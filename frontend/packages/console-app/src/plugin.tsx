@@ -12,10 +12,8 @@ import {
   DashboardsOverviewHealthPrometheusSubsystem,
   DashboardsOverviewInventoryItem,
   DashboardsOverviewHealthOperator,
-  ReduxReducer,
   ResourceDetailsPage,
   ResourceListPage,
-  ResourceClusterNavItem,
   ResourceTabPage,
 } from '@console/plugin-sdk';
 import {
@@ -45,7 +43,6 @@ import {
   getClusterUpdateTimestamp,
   isClusterUpdateActivity,
 } from './components/dashboards-page/activity';
-import reducer from './redux/reducer';
 import * as models from './models';
 
 type ConsumedExtensions =
@@ -57,10 +54,8 @@ type ConsumedExtensions =
   | DashboardsOverviewHealthPrometheusSubsystem
   | DashboardsOverviewInventoryItem
   | DashboardsOverviewHealthOperator<ClusterOperator>
-  | ReduxReducer
   | ResourceListPage
   | ResourceDetailsPage
-  | ResourceClusterNavItem
   | ResourceTabPage;
 
 const plugin: Plugin<ConsumedExtensions> = [
@@ -209,28 +204,6 @@ const plugin: Plugin<ConsumedExtensions> = [
             './components/quick-starts/QuickStartCatalogPage' /* webpackChunkName: "co-quick-start" */
           )
         ).default,
-    },
-  },
-  {
-    type: 'ReduxReducer',
-    properties: {
-      namespace: 'console',
-      reducer,
-    },
-  },
-  {
-    type: 'NavItem/ResourceCluster',
-    properties: {
-      id: 'volumesnapshots',
-      section: 'storage',
-      componentProps: {
-        // t('console-app~VolumeSnapshotContents')
-        name: '%console-app~VolumeSnapshotContents%',
-        resource: referenceForModel(VolumeSnapshotContentModel),
-      },
-    },
-    flags: {
-      required: [FLAGS.CAN_LIST_VSC],
     },
   },
   {

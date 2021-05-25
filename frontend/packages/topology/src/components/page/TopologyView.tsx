@@ -47,6 +47,7 @@ import { getSelectedEntityDetails } from '../side-bar/getSelectedEntityDetails';
 import { FilterContext } from '../../filters/FilterProvider';
 import TopologyEmptyState from './TopologyEmptyState';
 import QuickSearch from '../quick-search/QuickSearch';
+import { useTelemetry } from '@console/shared/src/hooks/useTelemetry';
 
 import './TopologyView.scss';
 
@@ -89,6 +90,7 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
   canDrop,
 }) => {
   const { t } = useTranslation();
+  const fireTelemetryEvent = useTelemetry();
   const [viewContainer, setViewContainer] = React.useState<HTMLElement>(null);
   const { setTopologyFilters: onFiltersChange } = React.useContext(FilterContext);
   const [filteredModel, setFilteredModel] = React.useState<Model>();
@@ -99,7 +101,16 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
   const applicationRef = React.useRef<string>(null);
   const createResourceAccess: string[] = useAddToProjectAccess(namespace);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = React.useState<boolean>(
-    !!getQueryArgument('catalogSearch'),
+    typeof getQueryArgument('catalogSearch') === 'string',
+  );
+  const setIsQuickSearchOpenAndFireEvent = React.useCallback(
+    (open: boolean) => {
+      if (open) {
+        fireTelemetryEvent('Quick Search Accessed');
+      }
+      setIsQuickSearchOpen(open);
+    },
+    [fireTelemetryEvent],
   );
   const appliedFilters = useAppliedDisplayFilters();
   const [displayFilterExtensions, displayFilterExtensionsResolved] = useResolvedExtensions<
@@ -268,9 +279,7 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
     [filteredModel, namespace, onSelect, viewType],
   );
 
-  const topologySideBarDetails = React.useMemo(() => getSelectedEntityDetails(selectedEntity), [
-    selectedEntity,
-  ]);
+  const topologySideBarDetails = getSelectedEntityDetails(selectedEntity);
 
   if (!filteredModel) {
     return null;
@@ -287,7 +296,7 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
           <TopologyFilterBar
             viewType={viewType}
             visualization={visualization}
-            setIsQuickSearchOpen={setIsQuickSearchOpen}
+            setIsQuickSearchOpen={setIsQuickSearchOpenAndFireEvent}
             isDisabled={!model.nodes?.length}
           />
         </StackItem>
@@ -309,7 +318,7 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
               )}
               {viewContent}
               {!model.nodes?.length ? (
-                <TopologyEmptyState setIsQuickSearchOpen={setIsQuickSearchOpen} />
+                <TopologyEmptyState setIsQuickSearchOpen={setIsQuickSearchOpenAndFireEvent} />
               ) : null}
             </div>
           </div>
@@ -321,7 +330,7 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
           namespace={namespace}
           viewContainer={viewContainer}
           isOpen={isQuickSearchOpen}
-          setIsOpen={setIsQuickSearchOpen}
+          setIsOpen={setIsQuickSearchOpenAndFireEvent}
         />
       </Stack>
     </div>

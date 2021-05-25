@@ -11,7 +11,7 @@ import { PipelineDetailsTabProps } from '../types';
 
 const PipelineDetails: React.FC<PipelineDetailsTabProps> = ({ obj: pipeline, customData }) => {
   const { t } = useTranslation();
-  const { taskLinks, finallyTaskLinks } = getPipelineTaskLinks(pipeline, t);
+  const { taskLinks, finallyTaskLinks } = getPipelineTaskLinks(pipeline);
 
   return (
     <div className="co-m-pane__body">
@@ -35,7 +35,7 @@ const PipelineDetails: React.FC<PipelineDetailsTabProps> = ({ obj: pipeline, cus
           <DynamicResourceLinkList
             namespace={pipeline.metadata.namespace}
             links={finallyTaskLinks}
-            title={t('pipelines-plugin~Finally tasks')}
+            title={t('pipelines-plugin~Final tasks')}
           />
           <WorkspaceDefinitionList workspaces={pipeline.spec.workspaces} />
         </div>

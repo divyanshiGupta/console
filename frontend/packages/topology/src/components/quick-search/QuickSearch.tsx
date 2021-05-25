@@ -19,10 +19,12 @@ const Contents: React.FC<{
   quickStarts: QuickStart[];
   quickStartsLoaded: boolean;
   catalogService: CatalogService;
+  catalogServiceSample: CatalogService;
 } & QuickSearchProps> = ({
   quickStarts,
   quickStartsLoaded,
   catalogService,
+  catalogServiceSample,
   namespace,
   viewContainer,
   isOpen,
@@ -37,6 +39,7 @@ const Contents: React.FC<{
       getCatalogURL: (searchTerm: string, ns: string) => `/catalog/ns/${ns}?keyword=${searchTerm}`,
       // t('topology~View all developer catalog items ({{itemCount, number}})')
       catalogLinkLabel: 'topology~View all developer catalog items ({{itemCount, number}})',
+      extensions: catalogService.catalogExtensions,
     },
     {
       catalogType: 'quickStarts',
@@ -45,6 +48,16 @@ const Contents: React.FC<{
       getCatalogURL: (searchTerm: string) => `/quickstart?keyword=${searchTerm}`,
       // t('topology~View all quick starts ({{itemCount, number}})'
       catalogLinkLabel: 'topology~View all quick starts ({{itemCount, number}})',
+      extensions: catalogService.catalogExtensions,
+    },
+    {
+      catalogType: 'Samples',
+      items: catalogServiceSample.items,
+      loaded: catalogServiceSample.loaded,
+      getCatalogURL: (searchTerm: string, ns: string) => `/samples/ns/${ns}?keyword=${searchTerm}`,
+      // t('topology~View all samples ({{itemCount, number}})'
+      catalogLinkLabel: 'topology~View all samples ({{itemCount, number}})',
+      extensions: catalogService.catalogExtensions,
     },
   ];
   return (
@@ -68,21 +81,26 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
   return (
     <CatalogServiceProvider namespace={namespace} catalogId="dev-catalog">
       {(catalogService: CatalogService) => (
-        <QuickStartsLoader>
-          {(quickStarts, quickStartsLoaded) => (
-            <Contents
-              {...{
-                namespace,
-                viewContainer,
-                isOpen,
-                setIsOpen,
-                catalogService,
-                quickStarts,
-                quickStartsLoaded,
-              }}
-            />
+        <CatalogServiceProvider namespace={namespace} catalogId="samples-catalog">
+          {(catalogServiceSample: CatalogService) => (
+            <QuickStartsLoader>
+              {(quickStarts, quickStartsLoaded) => (
+                <Contents
+                  {...{
+                    namespace,
+                    viewContainer,
+                    isOpen,
+                    setIsOpen,
+                    catalogService,
+                    catalogServiceSample,
+                    quickStarts,
+                    quickStartsLoaded,
+                  }}
+                />
+              )}
+            </QuickStartsLoader>
           )}
-        </QuickStartsLoader>
+        </CatalogServiceProvider>
       )}
     </CatalogServiceProvider>
   );

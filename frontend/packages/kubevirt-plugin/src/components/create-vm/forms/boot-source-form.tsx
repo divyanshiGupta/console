@@ -6,7 +6,12 @@ import {
   getAccessModeForProvisioner,
   provisionerAccessModeMapping,
 } from '@console/internal/components/storage/shared';
-import { ListDropdown, LoadingInline, RequestSizeInput } from '@console/internal/components/utils';
+import {
+  FieldLevelHelp,
+  ListDropdown,
+  LoadingInline,
+  RequestSizeInput,
+} from '@console/internal/components/utils';
 import { PersistentVolumeClaimModel } from '@console/internal/models';
 import { PersistentVolumeClaimKind, StorageClassResourceKind } from '@console/internal/module/k8s';
 import {
@@ -14,12 +19,9 @@ import {
   ExpandableSection,
   FileUpload,
   Form,
-  Popover,
-  PopoverPosition,
   SelectOption,
   TextInput,
 } from '@patternfly/react-core';
-import { HelpIcon } from '@patternfly/react-icons';
 
 import { AccessMode, ANNOTATION_SOURCE_PROVIDER, VolumeMode } from '../../../constants';
 import { ProvisionSource } from '../../../constants/vm/provision-source';
@@ -244,12 +246,14 @@ const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 
 type BootSourceFormProps = AdvancedSectionProps & {
   withUpload?: boolean;
+  baseImageName?: string;
 };
 
 export const BootSourceForm: React.FC<BootSourceFormProps> = ({
   state,
   dispatch,
   withUpload,
+  baseImageName,
   disabled,
   storageClasses,
   storageClassesLoaded,
@@ -319,7 +323,7 @@ export const BootSourceForm: React.FC<BootSourceFormProps> = ({
             isDisabled={disabled}
             id={getFieldId(VMSettingsField.IMAGE_URL)}
           />
-          <URLSourceHelp />
+          <URLSourceHelp baseImageName={baseImageName} />
         </FormRow>
       )}
       {state.dataSource?.value === ProvisionSource.CONTAINER.getValue() && (
@@ -406,22 +410,11 @@ export const BootSourceForm: React.FC<BootSourceFormProps> = ({
           label={
             <>
               {t('kubevirt-plugin~Mount this as a CD-ROM boot source')}
-              <Popover
-                position={PopoverPosition.top}
-                aria-label={t('kubevirt-plugin~CDROM help')}
-                bodyContent={t(
+              <FieldLevelHelp>
+                {t(
                   'kubevirt-plugin~CD-ROM requires an additional disk for the operating system to be installed onto. This disk will be added and can be customized when creating the virtual machine.',
                 )}
-              >
-                <button
-                  type="button"
-                  onClick={preventDefault}
-                  className="pf-c-form__group-label-help"
-                  aria-label={t('kubevirt-plugin~CDROM help')}
-                >
-                  <HelpIcon noVerticalAlign />
-                </button>
-              </Popover>
+              </FieldLevelHelp>
             </>
           }
           id="cdrom"
@@ -456,11 +449,12 @@ export const BootSourceForm: React.FC<BootSourceFormProps> = ({
         </FormRow>
       )}
       {withUpload && (
-        <FormRow fieldId="form-ds-provider" title={t('kubevirt-plugin~Source provider')}>
+        <FormRow fieldId="form-ds-provider" isRequired title={t('kubevirt-plugin~Source provider')}>
           <TextInput
             isDisabled={disabled}
             value={state.provider?.value}
             type="text"
+            isRequired
             onChange={(payload) => dispatch({ type: BOOT_ACTION_TYPE.SET_PROVIDER, payload })}
             aria-label={t('kubevirt-plugin~Source provider')}
             id="form-ds-provider-input"
@@ -470,7 +464,10 @@ export const BootSourceForm: React.FC<BootSourceFormProps> = ({
           </div>
         </FormRow>
       )}
-      <ExpandableSection toggleText={t('kubevirt-plugin~Advanced')} data-test="advanced-section">
+      <ExpandableSection
+        toggleText={t('kubevirt-plugin~Advanced Storage settings')}
+        data-test="advanced-section"
+      >
         <AdvancedSection
           state={state}
           dispatch={dispatch}

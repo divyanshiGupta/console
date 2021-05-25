@@ -1,17 +1,18 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { NavItemSeparator, NavGroup, Button } from '@patternfly/react-core';
 import { MinusCircleIcon } from '@patternfly/react-icons';
+import { useExtensions } from '@console/plugin-sdk';
 import {
-  useExtensions,
-  NavSection as PluginNavSection,
+  Separator,
   NavItem,
-  SeparatorNavItem,
+  isSeparator,
   isNavSection,
+  NavSection as PluginNavSection,
   isNavItem,
-  isSeparatorNavItem,
-} from '@console/plugin-sdk';
+} from '@console/dynamic-plugin-sdk/src';
 import { useActivePerspective, usePinnedResources } from '@console/shared';
-import { modelFor, referenceForModel } from '../../module/k8s';
+import { K8sKind, modelFor, referenceForModel } from '../../module/k8s';
 import { getSortedNavItems } from './navSortUtils';
 import confirmNavUnpinModal from './confirmNavUnpinModal';
 import { NavSection } from './section';
@@ -26,17 +27,10 @@ import {
 
 import './_perspective-nav.scss';
 
-const getLabelForResource = (resource: string): string => {
-  const model = modelFor(resource);
-  return model ? model.labelPlural : '';
-};
-
 const PerspectiveNav: React.FC<{}> = () => {
+  const { t } = useTranslation();
   const [perspective] = useActivePerspective();
-  const allItems = useExtensions<PluginNavSection | NavItem | SeparatorNavItem>(
-    isNavSection,
-    isNavItem,
-  );
+  const allItems = useExtensions<PluginNavSection | NavItem | Separator>(isNavSection, isNavItem);
   const [pinnedResources, setPinnedResources, pinnedResourcesLoaded] = usePinnedResources();
   const orderedNavItems = React.useMemo(() => {
     const topLevelItems = allItems.filter(
@@ -56,6 +50,17 @@ const PerspectiveNav: React.FC<{}> = () => {
     return <AdminNav />;
   }
 
+  const getLabelForResource = (resource: string): string => {
+    const model: K8sKind | undefined = modelFor(resource);
+    if (model) {
+      if (model.labelPluralKey) {
+        return t(model.labelPluralKey);
+      }
+      return model.labelPlural || model.plural;
+    }
+    return '';
+  };
+
   const getPinnedItems = (rootNavLink: boolean = false): React.ReactElement[] =>
     pinnedResourcesLoaded
       ? pinnedResources
@@ -64,14 +69,15 @@ const PerspectiveNav: React.FC<{}> = () => {
             if (!model) {
               return null;
             }
-            const { labelPlural, apiVersion, apiGroup, namespaced, crd, plural } = model;
+            const { apiVersion, apiGroup, namespaced, crd, plural } = model;
+            const label = getLabelForResource(resource);
             const duplicates =
-              pinnedResources.filter((res) => getLabelForResource(res) === labelPlural).length > 1;
+              pinnedResources.filter((res) => getLabelForResource(res) === label).length > 1;
             const props = {
               key: `pinned-${resource}`,
-              name: labelPlural,
+              name: label,
               resource: crd ? referenceForModel(model) : plural,
-              tipText: duplicates ? `${labelPlural}: ${apiGroup || 'core'}/${apiVersion}` : null,
+              tipText: duplicates ? `${label}: ${apiGroup || 'core'}/${apiVersion}` : null,
               id: resource,
             };
             const Component: NavLinkComponent = namespaced ? ResourceNSLink : ResourceClusterLink;
@@ -111,12 +117,10 @@ const PerspectiveNav: React.FC<{}> = () => {
           const { id, name } = item.properties;
           return <NavSection id={id} title={name} key={id} isGrouped={!name} />;
         }
-        if (isNavItem(item)) {
-          return createLink(item, true);
-        }
-        if (isSeparatorNavItem(item)) {
+        if (isSeparator(item)) {
           return <NavItemSeparator key={`separator-${index}`} />;
         }
+        return createLink(item, true);
       })}
       {pinnedResourcesLoaded && pinnedResources?.length ? (
         <NavGroup className="oc-nav-group" title="" key="group-pins">

@@ -10,7 +10,12 @@ import {
   isDetailPageBreadCrumbs,
   DetailPageBreadCrumbs,
 } from '@console/plugin-sdk';
-import { ResolvedExtension, useResolvedExtensions } from '@console/dynamic-plugin-sdk';
+import {
+  ResolvedExtension,
+  useResolvedExtensions,
+  ResourceTabPage as DynamicResourceTabPage,
+  isResourceTabPage as isDynamicResourceTabPage,
+} from '@console/dynamic-plugin-sdk';
 import { withFallback } from '@console/shared/src/components/error/error-boundary';
 import {
   Firehose,
@@ -28,6 +33,7 @@ import {
   K8sKind,
   referenceForModel,
   referenceFor,
+  referenceForExtensionModel,
 } from '../../module/k8s';
 import { ErrorBoundaryFallback } from '../error';
 import { breadcrumbsForDetailsPage } from '../utils/breadcrumbs';
@@ -64,21 +70,36 @@ export const DetailsPage = withFallback<DetailsPageProps>(({ pages = [], ...prop
   );
 
   const resourcePageExtensions = useExtensions<ResourceTabPage>(isResourceTabPage);
+  const [dynamicResourcePageExtensions] = useResolvedExtensions<DynamicResourceTabPage>(
+    isDynamicResourceTabPage,
+  );
 
   const pluginPages = React.useMemo(
-    () =>
-      resourcePageExtensions
+    () => [
+      ...resourcePageExtensions
         .filter(
           (p) =>
             referenceForModel(p.properties.model) ===
-            (props.kindObj ? referenceFor(props.kindObj) : props.kind),
+            (kindObj ? referenceFor(kindObj) : props.kind),
         )
         .map((p) => ({
           href: p.properties.href,
           name: p.properties.name,
           component: (cProps) => renderAsyncComponent(p, cProps),
         })),
-    [resourcePageExtensions, props],
+      ...dynamicResourcePageExtensions
+        .filter(
+          (p) =>
+            referenceForExtensionModel(p.properties.model) ===
+            (kindObj ? referenceFor(kindObj) : props.kind),
+        )
+        .map(({ properties: { href, name, component: Component } }) => ({
+          href,
+          name,
+          component: (cProps) => <Component {...cProps} />,
+        })),
+    ],
+    [resourcePageExtensions, dynamicResourcePageExtensions, kindObj, props.kind],
   );
   const resolvedBreadcrumbExtension = useBreadCrumbsForDetailPage(kindObj);
   const onBreadcrumbsResolved = React.useCallback((breadcrumbs) => {
@@ -101,7 +122,7 @@ export const DetailsPage = withFallback<DetailsPageProps>(({ pages = [], ...prop
         resources={[
           {
             kind: props.kind,
-            kindObj: props.kindObj,
+            kindObj,
             name: props.name,
             namespace: props.namespace,
             isList: false,
@@ -119,13 +140,14 @@ export const DetailsPage = withFallback<DetailsPageProps>(({ pages = [], ...prop
           breadcrumbs={pluginBreadcrumbs}
           breadcrumbsFor={
             props.breadcrumbsFor ??
-            (!pluginBreadcrumbs ? breadcrumbsForDetailsPage(props.kindObj, props.match) : undefined)
+            (!pluginBreadcrumbs ? breadcrumbsForDetailsPage(kindObj, props.match) : undefined)
           }
           resourceKeys={resourceKeys}
           getResourceStatus={props.getResourceStatus}
           customData={props.customData}
-          badge={props.badge || getBadgeFromType(props.kindObj && props.kindObj.badge)}
+          badge={props.badge || getBadgeFromType(kindObj?.badge)}
           icon={props.icon}
+          ele={props.ele}
         >
           {props.children}
         </PageHeading>
@@ -164,6 +186,7 @@ export type DetailsPageProps = {
   getResourceStatus?: (resource: K8sResourceKind) => string;
   children?: React.ReactNode;
   customKind?: string;
+  ele?: JSX.Element;
 };
 
 DetailsPage.displayName = 'DetailsPage';

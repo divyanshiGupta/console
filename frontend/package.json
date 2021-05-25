@@ -39,17 +39,21 @@
     "test-cypress-ceph-headless": "cd packages/ceph-storage-plugin/integration-tests-cypress && node --max-old-space-size=4096 ../../../node_modules/.bin/cypress run --config-file cypress-ceph.json --env openshift=true --browser ${BRIDGE_E2E_BROWSER_NAME:=chrome} --headless",
     "test-cypress-kubevirt": "cd packages/kubevirt-plugin/integration-tests-cypress && ../../../node_modules/.bin/cypress open --env openshift=true",
     "test-cypress-kubevirt-headless": "cd packages/kubevirt-plugin/integration-tests-cypress && node --max-old-space-size=4096 ../../../node_modules/.bin/cypress run --env openshift=true --browser ${BRIDGE_E2E_BROWSER_NAME:=chrome} --headless",
-    "test-cypress-pipelines": "cd packages/pipelines-plugin/integration-tests && ../../../node_modules/.bin/cypress open --env openshift=true",
-    "test-cypress-pipelines-headless": "cd packages/pipelines-plugin/integration-tests && node --max-old-space-size=4096 ../../../node_modules/.bin/cypress run --env openshift=true --browser ${BRIDGE_E2E_BROWSER_NAME:=chrome} --headless --spec \"features/*/*.feature\";",
-    "test-cypress-gitops": "cd packages/gitops-plugin/integration-tests && ../../../node_modules/.bin/cypress open --env openshift=true",
-    "test-cypress-gitops-headless": "cd packages/gitops-plugin/integration-tests && node --max-old-space-size=4096 ../../../node_modules/.bin/cypress run --env openshift=true --browser ${BRIDGE_E2E_BROWSER_NAME:=chrome} --headless --spec \"features/*/*.feature\";",
-    "test-cypress-knative": "cd packages/knative-plugin/integration-tests && ../../../node_modules/.bin/cypress open --env openshift=true",
-    "test-cypress-knative-headless": "cd packages/knative-plugin/integration-tests && node --max-old-space-size=4096 ../../../node_modules/.bin/cypress run --env openshift=true --browser ${BRIDGE_E2E_BROWSER_NAME:=chrome} --headless --spec \"features/*/*.feature\";",
+    "test-cypress-pipelines": "cd packages/pipelines-plugin/integration-tests && yarn run test-cypress",
+    "test-cypress-pipelines-headless": "cd packages/pipelines-plugin/integration-tests && yarn run test-cypress-headless",
+    "test-cypress-gitops": "cd packages/gitops-plugin/integration-tests && yarn run test-cypress",
+    "test-cypress-gitops-headless": "cd packages/gitops-plugin/integration-tests && yarn run test-cypress-headless",
+    "test-cypress-knative": "cd packages/knative-plugin/integration-tests && yarn run test-cypress",
+    "test-cypress-knative-headless": "cd packages/knative-plugin/integration-tests && yarn run test-cypress-headless",
+    "test-cypress-helm": "cd packages/helm-plugin/integration-tests && yarn run test-cypress",
+    "test-cypress-topology": "cd packages/topology/integration-tests && yarn run test-cypress",
+    "test-cypress-topology-headless": "cd packages/topology/integration-tests && yarn run test-cypress-headless",
+    "test-cypress-helm-headless": "cd packages/helm-plugin/integration-tests && yarn run test-cypress-headless",
     "cypress-merge": "mochawesome-merge ./gui_test_screenshots/cypress_report*.json > ./gui_test_screenshots/cypress.json",
     "cypress-generate": "marge -o ./gui_test_screenshots/ -f cypress-report -t 'OpenShift Console Cypress Test Results' -p 'OpenShift Cypress Test Results' --showPassed false --assetsDir ./gui_test_screenshots/cypress/assets ./gui_test_screenshots/cypress.json",
     "cypress-a11y-report": "echo '\nA11y Test Results:' && mv packages/integration-tests-cypress/cypress-a11y-report.json ./gui_test_screenshots/ && node -e \"console.table(JSON.parse(require('fs').readFileSync(process.argv[1])));\" ./gui_test_screenshots/cypress-a11y-report.json",
     "cypress-postreport": "yarn cypress-merge && yarn cypress-generate",
-    "analyze": "NODE_ENV=production NODE_OPTIONS=--max-old-space-size=8192 yarn ts-node ./node_modules/.bin/webpack --mode=production --progress=profile --json | sed '0,/^{/s/^[^{].*//g' > public/dist/stats.json && NODE_OPTIONS=--max-old-space-size=8192 yarn ts-node ./node_modules/.bin/webpack-bundle-analyzer --mode static -r public/dist/report.html public/dist/stats.json",
+    "analyze": "ANALYZE_BUNDLE=true NODE_ENV=production NODE_OPTIONS=--max-old-space-size=8192 yarn ts-node ./node_modules/.bin/webpack --mode=production",
     "prettier-all": "prettier --write '**/*.{js,jsx,ts,tsx,json}'",
     "ts-node": "ts-node -O '{\"module\":\"commonjs\"}'",
     "generate": "yarn generate-graphql && yarn build-plugin-sdk",
@@ -58,7 +62,9 @@
     "i18n-to-po": "node ./i18n-scripts/i18n-to-po.js",
     "po-to-i18n": "node ./i18n-scripts/po-to-i18n.js",
     "i18n": "./i18n-scripts/build-i18n.sh && node ./i18n-scripts/consolidate-public-folders && node ./i18n-scripts/set-english-defaults.js",
-    "export-pos": "./i18n-scripts/export-pos.sh"
+    "export-pos": "./i18n-scripts/export-pos.sh",
+    "memsource-upload": "./i18n-scripts/memsource-upload.sh",
+    "memsource-download": "./i18n-scripts/memsource-download.sh"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -284,8 +290,6 @@
     "mochawesome-merge": "^4.1.0",
     "mochawesome-report-generator": "^5.1.0",
     "mock-socket": "^9.0.3",
-    "moment": "2.22.x",
-    "moment-locales-webpack-plugin": "^1.2.0",
     "monaco-editor-core": "0.20.0",
     "monaco-editor-webpack-plugin": "^1.9.0",
     "node-sass": "^5.0.0",
@@ -305,7 +309,7 @@
     "ts-node": "5.x",
     "typescript": "3.8.3",
     "webpack": "4.44.0",
-    "webpack-bundle-analyzer": "^3.5.0",
+    "webpack-bundle-analyzer": "3.9.x",
     "webpack-cli": "4.5.x",
     "webpack-dev-server": "3.11.1",
     "webpack-virtual-modules": "0.3.x"
@@ -320,8 +324,8 @@
     "minimist": "1.2.5",
     "ua-parser-js": "^0.7.24",
     "@types/jest": "21.x",
-    "glob-parent": "^5.1.2"
-
+    "glob-parent": "^5.1.2",
+    "postcss": "^8.2.10"
   },
   "husky": {
     "hooks": {

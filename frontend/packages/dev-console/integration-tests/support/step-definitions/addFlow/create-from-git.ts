@@ -41,9 +41,9 @@ When('user selects resource type as {string}', (resourceType: string) => {
 });
 
 Then(
-  'created workload {string} is linked to existing application {string}',
+  'user can see the created workload {string} is linked to existing application {string}',
   (workloadName: string, appName: string) => {
-    topologyPage.appNode(appName).click({ force: true });
+    topologyPage.getAppNode(appName).click({ force: true });
     topologySidePane.verifyResource(workloadName);
   },
 );
@@ -122,7 +122,7 @@ Then('build does not get started for {string}', (nodeName: string) => {
   );
 });
 
-When('verify Auto deploy when new image is available checkbox is seleceted', () => {
+When('user verify the Auto deploy when new image is available checkbox is selected', () => {
   gitPage.verifyDeploymentOptionIsChecked();
 });
 
@@ -176,7 +176,7 @@ When('user enters label as {string}', (labelName: string) => {
   gitPage.enterLabels(labelName);
 });
 
-Then('public url is not created for node {string}', (nodeName: string) => {
+Then('public url is not created for node {string} in the workload sidebar', (nodeName: string) => {
   topologyPage.verifyWorkloadInTopologyPage(nodeName);
   topologyPage.componentNode(nodeName).click({ force: true });
   topologySidePane.selectTab('Resources');
@@ -207,5 +207,6 @@ Then(
     topologyPage.componentNode(nodeName).click({ force: true });
     topologySidePane.selectTab('Details');
     topologySidePane.verifyLabel(labelName);
+    topologySidePane.close();
   },
 );

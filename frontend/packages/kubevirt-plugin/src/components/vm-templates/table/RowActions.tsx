@@ -17,7 +17,7 @@ import {
   getTemplateMemory,
   getTemplateSizeRequirementInBytes,
 } from '../../../selectors/vm-template/advanced';
-import { selectVM } from '../../../selectors/vm-template/basic';
+import { isLabeledTemplate, selectVM } from '../../../selectors/vm-template/basic';
 import { TemplateSourceStatus } from '../../../statuses/template/types';
 import { VMTemplateLabel } from '../label';
 import { createVMAction } from '../utils';
@@ -38,11 +38,14 @@ const VMTemplateDetailsBody: React.FC<VMTemplateDetailsBodyProps> = ({
   const { t } = useTranslation();
   const osName = getOperatingSystemName(template);
   const storage = getTemplateSizeRequirementInBytes(template, sourceStatus);
+  const isLabel = isLabeledTemplate(t, template);
   return (
     <Stack hasGutter>
-      <StackItem>
-        <VMTemplateLabel template={template} />
-      </StackItem>
+      {isLabel && (
+        <StackItem>
+          <VMTemplateLabel template={template} />
+        </StackItem>
+      )}
       {osName && <StackItem>{osName}</StackItem>}
       <StackItem>
         <div className="kubevirt-vm-template-popover">
@@ -125,7 +128,7 @@ const RowActions: React.FC<RowActionsProps> = ({
         variant="secondary"
         className="kubevirt-vm-template-details"
       >
-        {t('kubevirt-plugin~Create')}
+        {t('kubevirt-plugin~Create VM')}
       </Button>
     </>
   );

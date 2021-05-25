@@ -46,7 +46,7 @@ export const MonitoringDashboardGraph: React.FC<MonitoringDashboardGraphProps> =
       <DashboardCardBody>
         <PrometheusGraphLink
           query={query}
-          ariaChartLinkLabel={t('dashboard~View metrics for {{title}}', {
+          ariaChartLinkLabel={t('devconsole~View metrics for {{title}}', {
             title,
           })}
         >
@@ -59,7 +59,8 @@ export const MonitoringDashboardGraph: React.FC<MonitoringDashboardGraphProps> =
             isStack={graphType === GraphTypes.area}
             timespan={timespan}
             pollInterval={pollInterval}
-            formatLegendLabel={(labels) => labels.pod}
+            formatSeriesTitle={(labels) => labels.pod}
+            showLegend
           />
         </PrometheusGraphLink>
       </DashboardCardBody>

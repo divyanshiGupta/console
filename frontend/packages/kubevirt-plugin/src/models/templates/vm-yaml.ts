@@ -55,7 +55,7 @@ spec:
       terminationGracePeriodSeconds: 0
       volumes:
         - containerDisk:
-            image: 'kubevirt/fedora-cloud-container-disk-demo:latest'
+            image: 'quay.io/kubevirt/fedora-cloud-container-disk-demo:latest'
           name: containerdisk
         - cloudInitNoCloud:
             userData: |-
@@ -65,3 +65,5 @@ spec:
           name: cloudinitdisk
 `,
 );
+
+export const defaultVMYamlTemplate = VirtualMachineYAMLTemplates.getIn(['default']);

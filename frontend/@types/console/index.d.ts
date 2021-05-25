@@ -33,6 +33,7 @@ declare interface Window {
     meteringBaseURL: string;
     prometheusBaseURL: string;
     prometheusTenancyBaseURL: string;
+    quickStarts: string;
     requestTokenURL: string;
     alertManagerPublicURL: string;
     grafanaPublicURL: string;
@@ -45,7 +46,10 @@ declare interface Window {
     graphqlBaseURL: string;
     developerCatalogCategories: string;
     userSettingsLocation: string;
+    addPage: string; // JSON encoded configuration
     consolePlugins: string[]; // Console dynamic plugins enabled on the cluster
+    quickStarts: string;
+    projectAccessClusterRoles: string;
   };
   windowError?: string;
   __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: Function;
@@ -55,6 +59,14 @@ declare interface Window {
   loadPluginFromURL?: Function;
   Cypress?: {};
   api: {};
+}
+
+// TODO: Remove when upgrading to TypeScript 4.1.2+, which has a type for RelativeTimeFormat.
+declare namespace Intl {
+  class RelativeTimeFormat {
+    constructor(locale: string);
+    format(n: number, unit: string);
+  }
 }
 
 // From https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html

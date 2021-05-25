@@ -1,17 +1,49 @@
+import { devNavigationMenu } from '@console/dev-console/integration-tests/support/constants';
 import { pageTitle } from '@console/dev-console/integration-tests/support/constants/pageTitle';
-import { pipelineBuilderText } from '../../constants/static-text/pipeline-text';
+import { navigateTo } from '@console/dev-console/integration-tests/support/pages';
+import { pipelineBuilderText } from '../../constants';
 import { pipelineBuilderPO, pipelineDetailsPO, pipelinesPO } from '../../page-objects/pipelines-po';
 import { pipelineDetailsPage } from './pipelineDetails-page';
+import { pipelinesPage } from './pipelines-page';
 
 export const pipelineBuilderSidePane = {
   verifyDialog: () => cy.get(pipelineBuilderPO.formView.sidePane.dialog).should('be.visible'),
+
   selectInputResource: (resourceName: string) => {
-    pipelineBuilderSidePane.verifyDialog();
-    cy.selectByDropDownText(pipelineBuilderPO.formView.sidePane.inputResource, resourceName);
+    cy.get(pipelineBuilderPO.formView.sidePane.dialog).within(() => {
+      cy.get(pipelineBuilderPO.formView.sidePane.inputResource).select(resourceName);
+    });
   },
+
   removeTask: () => {
+    cy.get(pipelineBuilderPO.formView.sidePane.dialog).within(() => {
+      cy.selectByDropDownText(pipelineBuilderPO.formView.sidePane.actions, 'Remove Task');
+    });
+  },
+
+  enterParameterUrl: (url: string = 'https://github.com/sclorg/golang-ex.git') => {
     pipelineBuilderSidePane.verifyDialog();
-    cy.selectByDropDownText(pipelineBuilderPO.formView.sidePane.actions, 'Remove Task');
+    cy.get(pipelineBuilderPO.formView.sidePane.parameterUrlHelper).should(
+      'contain.text',
+      pipelineBuilderText.formView.sidePane.ParameterUrlHelper,
+    );
+    cy.get(pipelineBuilderPO.formView.sidePane.parameterUrl).type(url);
+  },
+
+  enterRevision: (revision: string) => {
+    pipelineBuilderSidePane.verifyDialog();
+    cy.get(pipelineBuilderPO.formView.sidePane.parameterRevisionHelper).should(
+      'contain.text',
+      pipelineBuilderText.formView.sidePane.ParamterRevisionHelper,
+    );
+    cy.get(pipelineBuilderPO.formView.sidePane.parameterRevision).type(revision);
+  },
+
+  selectWorkspace: (workspaceName: string) => {
+    pipelineBuilderSidePane.verifyDialog();
+    cy.get(pipelineBuilderPO.formView.sidePane.workspaces)
+      .scrollIntoView()
+      .select(workspaceName);
   },
 };
 
@@ -48,6 +80,10 @@ export const pipelineBuilderPage = {
     cy.get(pipelineBuilderPO.formView.seriesTask).click();
     cy.byTestActionID(taskName).click();
   },
+  clickOnAddWorkSpace: () => {
+    cy.byButtonText('Add workspace').click();
+  },
+  clickOnAddResource: () => {},
   addParameters: (
     paramName: string,
     description: string = 'description',
@@ -63,24 +99,25 @@ export const pipelineBuilderPage = {
       .eq(1)
       .click();
     cy.get(pipelineBuilderPO.formView.addResources.name).type(resourceName);
-    cy.selectByDropDownText(pipelineBuilderPO.formView.addResources.resourceType, resourceType);
+    cy.get(pipelineBuilderPO.formView.addResources.resourceType).select(resourceType);
   },
   verifySection: () => {
     cy.get(pipelineBuilderPO.formView.sectionTitle).as('sectionTitle');
     cy.get('@sectionTitle')
       .eq(0)
-      .should('have.text', pipelineBuilderText.formView.Tasks);
+      .should('contain.text', pipelineBuilderText.formView.Tasks);
     cy.get('@sectionTitle')
       .eq(1)
-      .should('have.text', pipelineBuilderText.formView.Parameters);
+      .should('contain.text', pipelineBuilderText.formView.Parameters);
     cy.get('@sectionTitle')
       .eq(2)
-      .should('have.text', pipelineBuilderText.formView.Resources);
+      .should('contain.text', pipelineBuilderText.formView.Resources);
     cy.get('@sectionTitle')
       .eq(3)
-      .should('have.text', pipelineBuilderText.formView.Workspaces);
+      .should('contain.text', pipelineBuilderText.formView.Workspaces);
   },
   clickCreateButton: () => cy.get(pipelineBuilderPO.create).click(),
+  clickSaveButton: () => cy.get(pipelineBuilderPO.create).click(),
   clickYaml: () => {
     cy.get(pipelinesPO.createPipeline).click();
     cy.get(pipelineBuilderPO.configureVia.yamlView).click();
@@ -100,14 +137,6 @@ export const pipelineBuilderPage = {
   },
   createPipelineFromYamlPage: () => {
     pipelineBuilderPage.clickYaml();
-    // Modal is removed - so commented the below code
-    // cy.get(pipelineBuilderPO.switchToYamlEditorAlert.alertDialog).should('be.visible');
-    // cy.get(pipelineBuilderPO.switchToYamlEditorAlert.title).should(
-    //   'contain.text',
-    //   'Switch to YAML Editor?',
-    // );
-    // cy.get(pipelineBuilderPO.switchToYamlEditorAlert.continue).click();
-    // cy.get(pipelineBuilderPO.yamlCreatePipeline.helpText).should('contain.text', 'YAML or JSON');
     cy.get(pipelineBuilderPO.create).click();
   },
   createPipelineWithGitResources: (
@@ -123,25 +152,74 @@ export const pipelineBuilderPage = {
     pipelineBuilderPage.clickCreateButton();
     pipelineDetailsPage.verifyTitle(pipelineName);
   },
+
+  createPipelineWithWorkspaces: (
+    pipelineName: string = 'git-pipeline',
+    taskName: string = 'git-clone',
+    workspaceName: string = 'git',
+  ) => {
+    pipelineBuilderPage.enterPipelineName(pipelineName);
+    pipelineBuilderPage.selectTask(taskName);
+    pipelineBuilderPage.clickOnAddWorkSpace();
+    pipelineBuilderPage.addWorkspace(workspaceName);
+    pipelineBuilderPage.clickOnTask(taskName);
+    pipelineBuilderSidePane.enterParameterUrl();
+    pipelineBuilderSidePane.selectWorkspace(workspaceName);
+    pipelineBuilderPage.clickCreateButton();
+    pipelineDetailsPage.verifyTitle(pipelineName);
+  },
+
+  verifyAndCreatePipelineWithWorkspaces: (
+    pipelineName: string = 'git-pipeline',
+    workspaceName: string = 'git-wp',
+    taskName: string = 'git-clone',
+  ) => {
+    cy.get('body').then(($body) => {
+      if ($body.find(pipelinesPO.emptyMessage).length !== 0) {
+        cy.log(`No pipelines found, let's create a new pipeline "${pipelineName}"`);
+        pipelinesPage.clickOnCreatePipeline();
+        pipelineBuilderPage.createPipelineWithWorkspaces(pipelineName, taskName, workspaceName);
+        navigateTo(devNavigationMenu.Pipelines);
+      } else if ($body.find(pipelinesPO.search).length !== 0) {
+        cy.log('check');
+        pipelinesPage.searchPipelineInPipelinesPage(pipelineName);
+        if ($body.find(pipelinesPO.emptyMessage)) {
+          cy.log(
+            `No pipelines found with the given name "${pipelineName}", lets create a pipeline with given name`,
+          );
+          pipelinesPage.clickOnCreatePipeline();
+        } else {
+          cy.log(`"${pipelineName}" is already present in pipelines page`);
+        }
+        pipelineBuilderPage.createPipelineWithWorkspaces(pipelineName, taskName, workspaceName);
+        navigateTo(devNavigationMenu.Pipelines);
+      }
+    });
+  },
+
   selectSampleInYamlView: (yamlSample: string) => {
-    switch (yamlSample) {
-      case 's2i-build-and-deploy-pipeline-using-workspace':
-        cy.get(pipelineBuilderPO.yamlCreatePipeline.samples.s2iPipelineWithWorkspace).click();
-        break;
-      case 'docker-build-and-deploy-pipeline-using-pipeline-resource':
-        cy.get(pipelineBuilderPO.yamlCreatePipeline.samples.dockerPipelineWithResource).click();
-        break;
-      case 'docker-build-and-deploy-pipeline':
-        cy.get(pipelineBuilderPO.yamlCreatePipeline.samples.dockerBuildAndDeployPipeline).click();
-        break;
-      case 'simple-pipeline':
-        cy.get(pipelineBuilderPO.yamlCreatePipeline.samples.simplePipeline).click();
-        break;
-      case 's2i-build-and-deploy-pipeline-using-pipeline-resource':
-        cy.get(pipelineBuilderPO.yamlCreatePipeline.samples.s2iPipelineWithResource).click();
-        break;
-      default:
-        break;
+    cy.get(pipelineBuilderPO.yamlCreatePipeline.samples.sidebar).within(() => {
+      cy.get('li.co-resource-sidebar-item')
+        .contains(yamlSample)
+        .parent()
+        .find('button')
+        .contains('Try it')
+        .click();
+    });
+  },
+
+  selectOptionalWorkspace: (optional: boolean = false) => {
+    if (optional === true) {
+      cy.get(pipelineBuilderPO.formView.addWorkspaces.optionalWorkspace).check();
+      cy.log(`workspace is selected as optional`);
     }
+  },
+
+  addWorkspace: (workSpaceName: string, optional?: boolean) => {
+    cy.get(pipelineBuilderPO.formView.addWorkspaces.name)
+      .scrollIntoView()
+      .clear()
+      .type(workSpaceName);
+    pipelineBuilderPage.selectOptionalWorkspace(optional);
   },
 };

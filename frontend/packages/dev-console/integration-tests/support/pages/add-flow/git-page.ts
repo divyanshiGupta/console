@@ -32,6 +32,7 @@ export const gitPage = {
       if ($el.prop('tagName').includes('button')) {
         cy.get(gitPO.appName).click();
         cy.get(`li #${appName}-link`).click();
+        cy.log(`Application Name "${appName}" is selected`);
       } else if ($el.prop('tagName').includes('input')) {
         cy.get(gitPO.appName)
           .scrollIntoView()
@@ -41,17 +42,46 @@ export const gitPage = {
         cy.get(gitPO.appName)
           .type(appName)
           .should('have.value', appName);
+        cy.log(`Application Name "${appName}" is created`);
       } else {
         cy.log(`App name doesn't contain button or input tags`);
       }
     });
   },
-  verifyAppName: (nodeName: string) => cy.get(gitPO.appName).should('have.value', nodeName),
+  verifyAppName: (appName: string) => {
+    cy.get(gitPO.appName).then(($el) => {
+      if ($el.prop('tagName').includes('button')) {
+        cy.get(gitPO.appName)
+          .find('span')
+          .should('contain.text', appName);
+      } else if ($el.prop('tagName').includes('input')) {
+        cy.get(gitPO.appName).should('have.value', appName);
+      } else {
+        cy.log(`App name doesn't contain button or input tags`);
+      }
+    });
+    // cy.get(gitPO.appName).should('have.value', nodeName)
+  },
+  editAppName: (newAppName: string) => {
+    cy.get(gitPO.appName).click();
+    cy.get(gitPO.createNewApp)
+      .first()
+      .click();
+    cy.get(gitPO.newAppName)
+      .clear()
+      .type(newAppName);
+  },
   enterComponentName: (name: string) => {
     cy.get(gitPO.nodeName)
       .scrollIntoView()
       .invoke('val')
       .should('not.be.empty');
+    cy.get(gitPO.nodeName).clear();
+    cy.get(gitPO.nodeName)
+      .type(name)
+      .should('have.value', name);
+  },
+  enterWorkloadName: (name: string) => {
     cy.get(gitPO.nodeName).clear();
     cy.get(gitPO.nodeName)
       .type(name)
@@ -122,6 +152,7 @@ export const gitPage = {
   clickCreate: () =>
     cy
       .get(gitPO.create)
+      .scrollIntoView()
       .should('be.enabled')
       .click(),
   clickCancel: () =>
@@ -198,11 +229,10 @@ export const gitPage = {
         $body
           .find(gitPO.gitSection.validatedMessage)
           .text()
-          .includes(messages.addFlow.rateLimitExceeded)
+          .includes(messages.addFlow.rateLimitExceeded) ||
+        $body.find('[aria-label="Warning Alert"]').length
       ) {
         gitPage.selectBuilderImageForGitUrl(gitUrl);
-      } else {
-        cy.log(`git url validated`);
       }
     });
   },

@@ -36,6 +36,7 @@ import {
   NodesDisksListPage,
   NodesDisksListPageProps,
 } from '@console/local-storage-operator-plugin/src/components/disks-list/disks-list-page';
+import { getAnnotations } from '@console/shared/src';
 import { OCSKebabOptions } from './ocs-kebab-options';
 import { OCSStatus } from './ocs-status-column';
 import {
@@ -47,6 +48,7 @@ import {
   OCSColumnStateAction,
   Status,
   OCSDiskStatus,
+  ReplacementMap,
 } from './state-reducer';
 import { CEPH_STORAGE_NAMESPACE, OSD_DOWN_ALERT, OSD_DOWN_AND_OUT_ALERT } from '../../constants';
 
@@ -97,13 +99,18 @@ const diskRow: RowFunction<DiskMetadata, OCSMetadata> = ({
   style,
   customData,
 }) => {
-  const { ocsState, dispatch } = customData;
-  const diskName = obj.path;
+  const { ocsState, nodeName, dispatch } = customData;
   return (
     <TableRow id={obj.deviceID} index={index} trKey={key} style={style}>
       <TableData className={tableColumnClasses[0]}>{obj.path}</TableData>
       <TableData className={tableColumnClasses[1]}>{obj.status.state}</TableData>
-      <OCSStatus ocsState={ocsState} diskName={diskName} className={tableColumnClasses[1]} />
+      <OCSStatus
+        ocsState={ocsState}
+        diskName={obj.path}
+        diskID={obj.deviceID}
+        diskSerial={obj.serial}
+        className={tableColumnClasses[1]}
+      />
       <TableData className={tableColumnClasses[2]}>{obj.type || '-'}</TableData>
       <TableData className={cx(tableColumnClasses[3], 'co-break-word')}>
         {obj.model || '-'}
@@ -113,7 +120,8 @@ const diskRow: RowFunction<DiskMetadata, OCSMetadata> = ({
       </TableData>
       <TableData className={tableColumnClasses[5]}>{obj.fstype || '-'}</TableData>
       <OCSKebabOptions
-        diskName={diskName}
+        disk={obj}
+        nodeName={nodeName}
         alertsMap={ocsState.alertsMap}
         replacementMap={ocsState.replacementMap}
         isRebalancing={ocsState.isRebalancing}
@@ -125,12 +133,13 @@ const diskRow: RowFunction<DiskMetadata, OCSMetadata> = ({
 
 const OCSDisksList: React.FC<TableProps> = React.memo((props) => {
   const { t } = useTranslation();
-
   const [ocsState, dispatch] = React.useReducer(reducer, initialState);
+
+  const nodeName = props.customData.node;
 
   const [cephDiskData, cephDiskLoadError, cephDiskLoading] = usePrometheusPoll({
     endpoint: PrometheusEndpoint.QUERY,
-    query: osdDiskInfoMetric({ nodeName: props.customData.node }),
+    query: osdDiskInfoMetric({ nodeName }),
   });
   const [progressData, progressLoadError, progressLoading] = usePrometheusPoll({
     endpoint: PrometheusEndpoint.QUERY,
@@ -180,12 +189,16 @@ const OCSDisksList: React.FC<TableProps> = React.memo((props) => {
     }
 
     if (tiLoaded && !tiLoadError && tiData.length) {
-      const newData: OCSDiskList = tiData.reduce((data, ti) => {
-        const disk = ti.metadata.annotations?.disk;
-        const osd = ti.metadata.annotations?.osd;
-        if (osd && disk) {
-          data[disk] = {
-            osd,
+      const newData: ReplacementMap = tiData.reduce((data: ReplacementMap, ti) => {
+        const { devicePath, deviceID, deviceOsd, deviceNode, deviceSerial } =
+          getAnnotations(ti) || {};
+        if (devicePath && deviceOsd && deviceNode === nodeName) {
+          data[devicePath] = {
+            osd: deviceOsd,
+            disk: {
+              id: deviceID,
+              serial: deviceSerial,
+            },
             status: getTiBasedStatus(ti.status.conditions?.[0].type),
           };
         }
@@ -257,7 +270,7 @@ const OCSDisksList: React.FC<TableProps> = React.memo((props) => {
       aria-label={t('ceph-storage-plugin~Disks List')}
       Header={diskHeader}
       Row={diskRow}
-      customData={{ ocsState, dispatch }}
+      customData={{ ocsState, dispatch, nodeName }}
       NoDataEmptyMsg={props.customData.EmptyMsg}
       virtualize
     />
@@ -269,6 +282,7 @@ export const OCSNodesDiskListPage = (props: NodesDisksListPageProps) => (
 );
 
 type OCSMetadata = {
+  nodeName: string;
   ocsState: OCSColumnState;
   dispatch: React.Dispatch<OCSColumnStateAction>;
 };

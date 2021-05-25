@@ -1,14 +1,11 @@
 import * as React from 'react';
 import * as _ from 'lodash';
 import * as cx from 'classnames';
-import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Tooltip } from '@patternfly/react-core';
 import { createSvgIdUrl, useHover } from '@patternfly/react-topology';
-import {
-  global_BackgroundColor_light_100 as lightBackgroundColor,
-  global_BackgroundColor_200 as greyBackgroundColor,
-} from '@patternfly/react-tokens';
+import { global_BackgroundColor_light_100 as lightBackgroundColor } from '@patternfly/react-tokens/dist/js/global_BackgroundColor_light_100';
+import { global_BackgroundColor_200 as greyBackgroundColor } from '@patternfly/react-tokens/dist/js/global_BackgroundColor_200';
 import { referenceForModel } from '@console/internal/module/k8s';
 import {
   Firehose,
@@ -150,7 +147,6 @@ const TaskComponent: React.FC<TaskProps> = ({
   isFinallyTask,
   pipelineTask,
 }) => {
-  const { t } = useTranslation();
   const stepList = task?.data?.spec?.steps || [];
   const stepStatusList: StepStatus[] = stepList.map((step) => createStepStatus(step, status));
   const showStatusState: boolean = isPipelineRun && !!status && !!status.reason;
@@ -166,8 +162,8 @@ const TaskComponent: React.FC<TaskProps> = ({
   const hasWhenExpression = pipelineTask?.when?.length > 0;
   const hasRunAfter = pipelineTask?.runAfter?.length > 0;
   const taskStatusColor = status
-    ? getRunStatusColor(status.reason, t).pftoken.value
-    : getRunStatusColor(runStatus.Cancelled, t).pftoken.value;
+    ? getRunStatusColor(status.reason).pftoken.value
+    : getRunStatusColor(runStatus.Cancelled).pftoken.value;
 
   const [hover, hoverRef] = useHover();
   const truncatedVisualName = React.useMemo(
@@ -231,26 +227,9 @@ const TaskComponent: React.FC<TaskProps> = ({
     </g>
   );
 
-  const taskColor = showStatusState
-    ? taskStatusColor
-    : !isFinallyTask
-    ? greyBackgroundColor.value
-    : lightBackgroundColor.value;
-
   if (!disableVisualizationTooltip) {
     taskPill = (
       <>
-        {hasWhenExpression && (
-          <WhenExpressionDecorator
-            width={WHEN_EXPRESSSION_DIAMOND_SIZE}
-            height={WHEN_EXPRESSSION_DIAMOND_SIZE}
-            stroke={showStatusState ? taskColor : undefined}
-            color={taskColor}
-            appendLine={!hasRunAfter && !isFinallyTask}
-            status={status.reason}
-            enableTooltip
-          />
-        )}
         <Tooltip
           position="bottom"
           enableFlip={false}
@@ -269,7 +248,30 @@ const TaskComponent: React.FC<TaskProps> = ({
     );
   }
 
-  return enableLogLink ? <Link to={path}>{taskPill}</Link> : taskPill;
+  const taskColor = showStatusState
+    ? taskStatusColor
+    : !isFinallyTask
+    ? greyBackgroundColor.value
+    : lightBackgroundColor.value;
+
+  const taskNode = (
+    <>
+      {hasWhenExpression && (
+        <WhenExpressionDecorator
+          width={WHEN_EXPRESSSION_DIAMOND_SIZE}
+          height={WHEN_EXPRESSSION_DIAMOND_SIZE}
+          stroke={showStatusState ? taskColor : undefined}
+          color={taskColor}
+          appendLine={!hasRunAfter && !isFinallyTask}
+          status={status.reason}
+          enableTooltip
+          leftOffset={disableVisualizationTooltip && !isFinallyTask ? 3 : 2}
+        />
+      )}
+      {taskPill}
+    </>
+  );
+  return enableLogLink ? <Link to={path}>{taskNode}</Link> : taskNode;
 };
 
 interface SvgTaskStatusProps {
@@ -280,7 +282,6 @@ interface SvgTaskStatusProps {
 }
 
 const SvgTaskStatus: React.FC<SvgTaskStatusProps> = ({ steps, x, y, width }) => {
-  const { t } = useTranslation();
   if (steps.length === 0) {
     return null;
   }
@@ -296,7 +297,7 @@ const SvgTaskStatus: React.FC<SvgTaskStatusProps> = ({ steps, x, y, width }) => 
             y={y}
             width={stepWidth - gap}
             height={2}
-            fill={getRunStatusColor(step.runStatus, t).pftoken.value}
+            fill={getRunStatusColor(step.runStatus).pftoken.value}
           />
         );
       })}

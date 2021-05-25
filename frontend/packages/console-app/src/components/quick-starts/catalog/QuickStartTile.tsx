@@ -5,7 +5,6 @@ import { FallbackImg } from '@console/shared';
 import { QuickStartStatus, QuickStart } from '../utils/quick-start-types';
 import QuickStartTileHeader from './QuickStartTileHeader';
 import QuickStartTileDescription from './QuickStartTileDescription';
-import QuickStartTileFooter from './QuickStartTileFooter';
 
 import './QuickStartTile.scss';
 
@@ -23,8 +22,7 @@ const QuickStartTile: React.FC<QuickStartTileProps> = ({
   onClick,
 }) => {
   const {
-    metadata: { name: id },
-    spec: { icon, tasks, displayName, description, durationMinutes, prerequisites },
+    spec: { icon, displayName, description, durationMinutes, prerequisites },
   } = quickStart;
 
   const quickStartIcon = (
@@ -42,11 +40,9 @@ const QuickStartTile: React.FC<QuickStartTileProps> = ({
       featured={isActive}
       title={<QuickStartTileHeader name={displayName} status={status} duration={durationMinutes} />}
       onClick={onClick}
-      description={
-        <QuickStartTileDescription description={description} prerequisites={prerequisites} />
-      }
-      footer={<QuickStartTileFooter quickStartId={id} status={status} totalTasks={tasks.length} />}
-    />
+    >
+      <QuickStartTileDescription description={description} prerequisites={prerequisites} />
+    </CatalogTile>
   );
 };
 

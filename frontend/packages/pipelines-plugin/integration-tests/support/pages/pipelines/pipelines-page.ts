@@ -86,11 +86,15 @@ export const pipelinesPage = {
     }
   },
 
-  search: (pipelineName: string) => {
+  searchPipelineInPipelinesPage: (pipelineName: string) => {
     cy.get(pipelinesPO.search)
       .should('be.visible')
       .clear()
       .type(pipelineName);
+  },
+
+  search: (pipelineName: string) => {
+    pipelinesPage.searchPipelineInPipelinesPage(pipelineName);
     cy.get(pipelinesPO.pipelinesTable.table).should('be.visible');
   },
 
@@ -193,25 +197,46 @@ export const startPipelineInPipelinesPage = {
       .should('be.enabled')
       .type(gitUrl);
   },
+  verifyGitRepoUrlAndEnterGitUrl: (gitUrl: string) => {
+    cy.get(pipelinesPO.startPipeline.gitResourceDropdown).then(($btn) => {
+      if ($btn.attr('disabled')) {
+        startPipelineInPipelinesPage.enterGitUrl(gitUrl);
+      } else {
+        cy.get(pipelinesPO.startPipeline.gitResourceDropdown).select('Create Pipeline resource');
+        startPipelineInPipelinesPage.enterGitUrl(gitUrl);
+      }
+    });
+  },
+  selectConfigMap: (configMapValue: string) => {
+    cy.selectByAutoCompleteDropDownText(
+      pipelinesPO.startPipeline.workspaces.configMap,
+      configMapValue,
+    );
+  },
+
+  selectSecret: (secret: string) => {
+    cy.selectByDropDownText(pipelinesPO.startPipeline.workspaces.secret, secret);
+  },
+
+  selectPVC: (pvc: string) => {
+    cy.selectByAutoCompleteDropDownText(pipelinesPO.startPipeline.workspaces.pvc, pvc);
+  },
+
   enterRevision: (revision: string) => {
     cy.get(pipelinesPO.startPipeline.revision)
       .should('be.visible')
       .type(revision);
   },
   addGitResource: (gitUrl: string, revision: string = 'master') => {
-    cy.get('.modal-body-content').should('be.visible');
+    modal.shouldBeOpened();
     cy.get('form').within(() => {
       // eslint-disable-next-line cypress/no-unnecessary-waiting
       cy.wait(1000);
       cy.get(pipelinesPO.startPipeline.gitResourceDropdown).then(($btn) => {
-        // if ($btn.attr('aria-haspopup', 'listbox')) {
         if ($btn.attr('disabled')) {
           cy.log('Pipeline resource is not available, so adding a new git resource');
         } else {
-          cy.get(pipelinesPO.startPipeline.gitResourceDropdown).click();
-          cy.get('[role="option"]')
-            .first()
-            .click();
+          cy.get(pipelinesPO.startPipeline.gitResourceDropdown).select('Create Pipeline resource');
         }
         startPipelineInPipelinesPage.enterGitUrl(gitUrl);
         startPipelineInPipelinesPage.enterRevision(revision);
@@ -243,7 +268,7 @@ export const startPipelineInPipelinesPage = {
   },
   verifyCreateSourceSecretSection: () => {
     cy.get(pipelinesPO.startPipeline.advancedOptions.secretFormTitle).should('be.visible');
-    cy.testA11y('Secret source creation in Start Pipeline Modal');
+    // cy.testA11y('Secret source creation in Start Pipeline Modal');
   },
   verifyFields: () => {
     cy.get(pipelinesPO.startPipeline.secretForm).within(() => {
@@ -265,20 +290,24 @@ export const startPipelineInPipelinesPage = {
     cy.get(pipelinesPO.startPipeline.sharedWorkspace).click();
     switch (option) {
       case 'Empty Directory':
-        cy.byTestDropDownMenu('EmptyDirectory').click();
+        cy.byTestDropDownMenu('emptyDirectory').click();
         break;
       case 'Config Map':
-        cy.byTestDropDownMenu('ConfigMap').click();
+        cy.byTestDropDownMenu('configMap').click();
         break;
       case 'Secret':
-        cy.byTestDropDownMenu('Secret').click();
+        cy.byTestDropDownMenu('secret').click();
         break;
-      case 'PVC':
-        cy.byTestDropDownMenu('PVC').click();
+      case 'PersistentVolumeClaim' || 'PVC':
+        cy.byTestDropDownMenu('pvc').click();
+        break;
+      case 'VolumeClaimTemplate':
+        cy.byTestDropDownMenu('volumeClaimTemplate').click();
         break;
       default:
         break;
     }
+    cy.log(`user selected ${option} as workspace`);
   },
 
   selectView: (option: string) => {

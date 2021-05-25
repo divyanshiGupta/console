@@ -48,7 +48,7 @@ import { AlertmanagerYAMLEditorWrapper } from './alert-manager-yaml-editor';
 import { AlertmanagerConfigWrapper } from './alert-manager-config';
 import MonitoringDashboardsPage from './dashboards';
 import { QueryBrowserPage, ToggleGraph } from './metrics';
-import { FormatLegendLabel, QueryBrowser } from './query-browser';
+import { FormatSeriesTitle, QueryBrowser } from './query-browser';
 import { CreateSilence, EditSilence } from './silence-form';
 import {
   Alert,
@@ -82,22 +82,26 @@ import {
   silenceState,
   silencesToProps,
 } from './utils';
+import { DetailsPage } from '../factory/details';
+import AlertLogs from './alert-logs';
 import { refreshNotificationPollers } from '../notification-drawer';
 import { formatPrometheusDuration } from '../utils/datetime';
 import { ActionsMenu } from '../utils/dropdown';
 import { Firehose } from '../utils/firehose';
 import { SectionHeading, ActionButtons, BreadCrumbs } from '../utils/headings';
 import { Kebab } from '../utils/kebab';
-import { ExternalLink, getURLSearchParams } from '../utils/link';
+import { getURLSearchParams } from '../utils/link';
 import { ResourceLink } from '../utils/resource-link';
 import { ResourceStatus } from '../utils/resource-status';
 import { history } from '../utils/router';
+import { Location } from 'history';
 import { LoadingInline, StatusBox } from '../utils/status-box';
 import { Timestamp } from '../utils/timestamp';
 import { getPrometheusURL, PrometheusEndpoint } from '../graphs/helpers';
 import { breadcrumbsForGlobalConfig } from '../cluster-settings/global-config';
+import { Details } from './alert-details';
 
-const ruleURL = (rule: Rule) => `${RuleResource.plural}/${_.get(rule, 'id')}`;
+export const ruleURL = (rule: Rule) => `${RuleResource.plural}/${_.get(rule, 'id')}`;
 
 const pollers = {};
 const pollerTimeouts = {};
@@ -141,7 +145,10 @@ const silenceMenuActions = (silence: Silence) =>
 
 const SilenceKebab = ({ silence }) => <Kebab options={silenceMenuActions(silence)} />;
 
-const MonitoringResourceIcon: React.FC<MonitoringResourceIconProps> = ({ className, resource }) => (
+export const MonitoringResourceIcon: React.FC<MonitoringResourceIconProps> = ({
+  className,
+  resource,
+}) => (
   <span
     className={classNames(
       `co-m-resource-icon co-m-resource-${resource.kind.toLowerCase()}`,
@@ -161,25 +168,53 @@ const alertStateIcons = {
 
 const AlertStateIcon: React.FC<{ state: string }> = ({ state }) => alertStateIcons[state];
 
+const getAlertStateKey = (state) => {
+  switch (state) {
+    case AlertStates.Firing:
+      return i18next.t('public~Firing');
+    case AlertStates.Pending:
+      return i18next.t('public~Pending');
+    case AlertStates.Silenced:
+      return i18next.t('public~Silenced');
+    default:
+      return i18next.t('public~Not Firing');
+  }
+};
+
 export const AlertState: React.FC<AlertStateProps> = ({ state }) => {
   const icon = alertStateIcons[state];
+
   return icon ? (
     <>
-      {icon} {_.startCase(state)}
+      {icon} {getAlertStateKey(state)}
     </>
   ) : null;
 };
 
 const SilenceState = ({ silence }) => {
+  const { t } = useTranslation();
+
   const state = silenceState(silence);
   const icon = {
     [SilenceStates.Active]: <GreenCheckCircleIcon />,
     [SilenceStates.Pending]: <HourglassHalfIcon className="monitoring-state-icon--pending" />,
     [SilenceStates.Expired]: <BanIcon className="text-muted" data-test-id="ban-icon" />,
   }[state];
+
+  const getStateKey = (stateData) => {
+    switch (stateData) {
+      case SilenceStates.Active:
+        return t('public~Active');
+      case SilenceStates.Pending:
+        return t('public~Pending');
+      default:
+        return t('public~Expired');
+    }
+  };
+
   return icon ? (
     <>
-      {icon} {_.startCase(state)}
+      {icon} {getStateKey(state)}
     </>
   ) : null;
 };
@@ -191,12 +226,19 @@ export const StateTimestamp = ({ text, timestamp }) => (
   </div>
 );
 
-const AlertStateDescription = ({ alert }) => {
+export const AlertStateDescription = ({ alert }) => {
+  const { t } = useTranslation();
+
   if (alert && !_.isEmpty(alert.silencedBy)) {
-    return <StateTimestamp text="Ends" timestamp={_.max(_.map(alert.silencedBy, 'endsAt'))} />;
+    return (
+      <StateTimestamp
+        text={t('public~Ends')}
+        timestamp={_.max(_.map(alert.silencedBy, 'endsAt'))}
+      />
+    );
   }
   if (alert && alert.activeAt) {
-    return <StateTimestamp text="Since" timestamp={alert.activeAt} />;
+    return <StateTimestamp text={t('public~Since')} timestamp={alert.activeAt} />;
   }
   return null;
 };
@@ -212,14 +254,32 @@ const SeverityIcon: React.FC<{ severity: string }> = ({ severity }) => {
   return <Icon />;
 };
 
-export const Severity: React.FC<{ severity: string }> = ({ severity }) =>
-  _.isNil(severity) ? (
+export const Severity: React.FC<{ severity: string }> = ({ severity }) => {
+  const { t } = useTranslation();
+
+  const getSeverityKey = (severityData: string) => {
+    switch (severityData) {
+      case AlertSeverity.Critical:
+        return t('public~Critical');
+      case AlertSeverity.Info:
+        return t('public~Info');
+      case AlertSeverity.Warning:
+        return t('public~Warning');
+      case AlertSeverity.None:
+        return t('public~None');
+      default:
+        return severityData;
+    }
+  };
+
+  return _.isNil(severity) ? (
     <>-</>
   ) : (
     <>
-      <SeverityIcon severity={severity} /> {_.startCase(severity)}
+      <SeverityIcon severity={severity} /> {getSeverityKey(severity)}
     </>
   );
+};
 
 const SeverityBadge: React.FC<{ severity: string }> = ({ severity }) =>
   _.isNil(severity) || severity === 'none' ? null : (
@@ -265,14 +325,17 @@ export const StateCounts: React.FC<{ alerts: PrometheusAlert[] }> = ({ alerts })
     <>
       {states.map((s) => (
         <div className="monitoring-icon-wrap" key={s}>
-          <AlertStateIcon state={s} /> {counts[s]} {_.startCase(s)}
+          <AlertStateIcon state={s} /> {counts[s]} {getAlertStateKey(s)}
         </div>
       ))}
     </>
   );
 };
 
-const PopoverField: React.FC<{ body: React.ReactNode; label: string }> = ({ body, label }) => (
+export const PopoverField: React.FC<{ body: React.ReactNode; label: string }> = ({
+  body,
+  label,
+}) => (
   <Popover headerContent={label} bodyContent={body}>
     <Button variant="plain" className="details-item__popover-button">
       {label}
@@ -280,85 +343,99 @@ const PopoverField: React.FC<{ body: React.ReactNode; label: string }> = ({ body
   </Popover>
 );
 
-const alertStateHelp = (
-  <dl className="co-inline">
-    <dt>
-      <AlertStateIcon state={AlertStates.Pending} /> <strong>Pending: </strong>
-    </dt>
-    <dd>
-      The alert is active but is waiting for the duration that is specified in the alerting rule
-      before it fires.
-    </dd>
-    <dt>
-      <AlertStateIcon state={AlertStates.Firing} /> <strong>Firing: </strong>
-    </dt>
-    <dd>
-      The alert is firing because the alert condition is true and the optional `for` duration has
-      passed. The alert will continue to fire as long as the condition remains true.
-    </dd>
-    <dt>
-      <AlertStateIcon state={AlertStates.Silenced} /> <strong>Silenced: </strong>
-    </dt>
-    <dt></dt>
-    <dd>
-      The alert is now silenced for a defined time period. Silences temporarily mute alerts based on
-      a set of label selectors that you define. Notifications will not be sent for alerts that match
-      all the listed values or regular expressions.
-    </dd>
-  </dl>
-);
+export const AlertStateHelp: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <dl className="co-inline">
+      <dt>
+        <AlertStateIcon state={AlertStates.Pending} /> <strong>{t('public~Pending: ')}</strong>
+      </dt>
+      <dd>
+        {t(
+          'public~The alert is active but is waiting for the duration that is specified in the alerting rule before it fires.',
+        )}
+      </dd>
+      <dt>
+        <AlertStateIcon state={AlertStates.Firing} /> <strong>{t('public~Firing: ')}</strong>
+      </dt>
+      <dd>
+        {t(
+          'public~The alert is firing because the alert condition is true and the optional `for` duration has passed. The alert will continue to fire as long as the condition remains true.',
+        )}
+      </dd>
+      <dt>
+        <AlertStateIcon state={AlertStates.Silenced} /> <strong>{t('public~Silenced: ')}</strong>
+      </dt>
+      <dt></dt>
+      <dd>
+        {t(
+          'public~The alert is now silenced for a defined time period. Silences temporarily mute alerts based on a set of label selectors that you define. Notifications will not be sent for alerts that match all the listed values or regular expressions.',
+        )}
+      </dd>
+    </dl>
+  );
+};
 
-const severityHelp = (
-  <dl className="co-inline">
-    <dt>
-      <SeverityIcon severity={AlertSeverity.Critical} /> <strong>Critical: </strong>
-    </dt>
-    <dd>
-      The condition that triggered the alert could have a critical impact. The alert requires
-      immediate attention when fired and is typically paged to an individual or to a critical
-      response team.
-    </dd>
-    <dt>
-      <SeverityIcon severity={AlertSeverity.Warning} /> <strong>Warning: </strong>
-    </dt>
-    <dd>
-      The alert provides a warning notification about something that might require attention in
-      order to prevent a problem from occurring. Warnings are typically routed to a ticketing system
-      for non-immediate review.
-    </dd>
-    <dt>
-      <SeverityIcon severity={AlertSeverity.Info} /> <strong>Info: </strong>
-    </dt>
-    <dd>The alert is provided for informational purposes only.</dd>
-    <dt>
-      <SeverityIcon severity={AlertSeverity.None} /> <strong>None: </strong>
-    </dt>
-    <dd>The alert has no defined severity.</dd>
-    <dd>You can also create custom severity definitions for user workload alerts.</dd>
-  </dl>
-);
+export const SeverityHelp: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <dl className="co-inline">
+      <dt>
+        <SeverityIcon severity={AlertSeverity.Critical} /> <strong>{t('public~Critical: ')}</strong>
+      </dt>
+      <dd>
+        {t(
+          'public~The condition that triggered the alert could have a critical impact. The alert requires immediate attention when fired and is typically paged to an individual or to a critical response team.',
+        )}
+      </dd>
+      <dt>
+        <SeverityIcon severity={AlertSeverity.Warning} /> <strong>{t('public~Warning: ')}</strong>
+      </dt>
+      <dd>
+        {t(
+          'public~The alert provides a warning notification about something that might require attention in order to prevent a problem from occurring. Warnings are typically routed to a ticketing system for non-immediate review.',
+        )}
+      </dd>
+      <dt>
+        <SeverityIcon severity={AlertSeverity.Info} /> <strong>{t('public~Info: ')}</strong>
+      </dt>
+      <dd>{t('public~The alert is provided for informational purposes only.')}</dd>
+      <dt>
+        <SeverityIcon severity={AlertSeverity.None} /> <strong>{t('public~None: ')}</strong>
+      </dt>
+      <dd>{t('public~The alert has no defined severity.')}</dd>
+      <dd>
+        {t('public~You can also create custom severity definitions for user workload alerts.')}
+      </dd>
+    </dl>
+  );
+};
 
-const sourceHelp = (
-  <dl className="co-inline">
-    <dt>
-      <strong>Platform: </strong>
-    </dt>
-    <dd>
-      Platform-level alerts relate only to OpenShift namespaces. OpenShift namespaces provide core
-      OpenShift functionality.
-    </dd>
-    <dt>
-      <strong>User: </strong>
-    </dt>
-    <dd>
-      User workload alerts relate to user-defined namespaces. These alerts are user-created and are
-      customizable. User workload monitoring can be enabled post-installation to provide
-      observability into your own services.
-    </dd>
-  </dl>
-);
+export const SourceHelp: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <dl className="co-inline">
+      <dt>
+        <strong>{t('public~Platform: ')}</strong>
+      </dt>
+      <dd>
+        {t(
+          'public~Platform-level alerts relate only to OpenShift namespaces. OpenShift namespaces provide core OpenShift functionality.',
+        )}
+      </dd>
+      <dt>
+        <strong>{t('public~User: ')}</strong>
+      </dt>
+      <dd>
+        {t(
+          'public~User workload alerts relate to user-defined namespaces. These alerts are user-created and are customizable. User workload monitoring can be enabled post-installation to provide observability into your own services.',
+        )}
+      </dd>
+    </dl>
+  );
+};
 
-const Annotation = ({ children, title }) =>
+export const Annotation = ({ children, title }) =>
   _.isNil(children) ? null : (
     <>
       <dt>{title}</dt>
@@ -366,7 +443,7 @@ const Annotation = ({ children, title }) =>
     </>
   );
 
-const Label = ({ k, v }) => (
+export const Label = ({ k, v }) => (
   <div className="co-m-label co-m-label--expand" key={k}>
     <span className="co-m-label__key">{k}</span>
     <span className="co-m-label__eq">=</span>
@@ -379,9 +456,9 @@ const queryBrowserURL = (query: string, namespace: string) =>
     ? `/dev-monitoring/ns/${namespace}/metrics?query0=${encodeURIComponent(query)}`
     : `/monitoring/query-browser?query0=${encodeURIComponent(query)}`;
 
-const Graph: React.FC<GraphProps> = ({
+export const Graph: React.FC<GraphProps> = ({
   filterLabels = undefined,
-  formatLegendLabel,
+  formatSeriesTitle,
   namespace,
   query,
   ruleDuration,
@@ -403,7 +480,7 @@ const Graph: React.FC<GraphProps> = ({
       namespace={namespace}
       defaultTimespan={timespan}
       filterLabels={filterLabels}
-      formatLegendLabel={formatLegendLabel}
+      formatSeriesTitle={formatSeriesTitle}
       GraphLink={GraphLink}
       pollInterval={Math.round(timespan / 120)}
       queries={[query]}
@@ -427,7 +504,7 @@ const SilenceMatchersList = ({ silence }) => (
   </div>
 );
 
-const SilenceTableRow: RowFunction<Silence> = ({ index, key, obj, style }) => {
+export const SilenceTableRow: RowFunction<Silence> = ({ index, key, obj, style }) => {
   const { createdBy, endsAt, firingAlerts, id, name, startsAt } = obj;
   const state = silenceState(obj);
 
@@ -454,9 +531,15 @@ const SilenceTableRow: RowFunction<Silence> = ({ index, key, obj, style }) => {
       </TableData>
       <TableData className={classNames(tableSilenceClasses[2], 'co-break-word')}>
         <SilenceState silence={obj} />
-        {state === SilenceStates.Pending && <StateTimestamp text="Starts" timestamp={startsAt} />}
-        {state === SilenceStates.Active && <StateTimestamp text="Ends" timestamp={endsAt} />}
-        {state === SilenceStates.Expired && <StateTimestamp text="Expired" timestamp={endsAt} />}
+        {state === SilenceStates.Pending && (
+          <StateTimestamp text={i18next.t('public~Starts')} timestamp={startsAt} />
+        )}
+        {state === SilenceStates.Active && (
+          <StateTimestamp text={i18next.t('public~Ends')} timestamp={endsAt} />
+        )}
+        {state === SilenceStates.Expired && (
+          <StateTimestamp text={i18next.t('public~Expired')} timestamp={endsAt} />
+        )}
       </TableData>
       <TableData className={tableSilenceClasses[3]}>{createdBy || '-'}</TableData>
       <TableData className={tableSilenceClasses[4]}>
@@ -480,7 +563,7 @@ export const alertMessageResources: { [labelName: string]: K8sKind } = {
 const matchCount = (haystack: string, regExpString: string) =>
   _.size(haystack.match(new RegExp(regExpString, 'g')));
 
-const AlertMessage: React.FC<AlertMessageProps> = ({ alertText, labels, template }) => {
+export const AlertMessage: React.FC<AlertMessageProps> = ({ alertText, labels, template }) => {
   if (_.isEmpty(alertText)) {
     return null;
   }
@@ -534,7 +617,7 @@ const HeaderAlertMessage: React.FC<{ alert: Alert; rule: Rule }> = ({ alert, rul
   );
 };
 
-const getSilenceTableHeader = (t) => [
+export const getSilenceTableHeader = (t) => [
   {
     title: t('public~Name'),
     sortField: 'name',
@@ -565,7 +648,7 @@ const getSilenceTableHeader = (t) => [
   },
 ];
 
-const alertStateToProps = (state: RootState, { match }): AlertsDetailsPageProps => {
+const alertStateToProps = (state: RootState, { match, location }): AlertsDetailsPageProps => {
   const perspective = _.has(match.params, 'ns') ? 'dev' : 'admin';
   const namespace = match.params?.ns;
   const { data, loaded, loadError }: Alerts = alertsToProps(state, perspective);
@@ -582,183 +665,109 @@ const alertStateToProps = (state: RootState, { match }): AlertsDetailsPageProps 
     namespace,
     rule,
     silencesLoaded,
+    location,
   };
+};
+
+const getSourceKey = (source) => {
+  switch (source) {
+    case 'Platform':
+      return i18next.t('public~Platform');
+    case 'User':
+      return i18next.t('public~User');
+    default:
+      return source;
+  }
 };
 
 export const AlertsDetailsPage = withFallback(
   connect(alertStateToProps)((props: AlertsDetailsPageProps) => {
-    const { alert, loaded, loadError, namespace, rule, silencesLoaded } = props;
+    const { alert, loaded, loadError, namespace, rule, silencesLoaded, match, location } = props;
     const state = alertState(alert);
 
     const { t } = useTranslation();
-
-    const silencesTableHeader = () =>
-      getSilenceTableHeader(t).map((h) => _.pick(h, ['title', 'props']));
 
     const labelsMemoKey = JSON.stringify(alert?.labels);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const labels: PrometheusLabels = React.useMemo(() => alert?.labels, [labelsMemoKey]);
 
-    return (
-      <>
-        <Helmet>
-          <title>{`${labels?.alertname} · Details`}</title>
-        </Helmet>
-        <StatusBox data={alert} label={AlertResource.label} loaded={loaded} loadError={loadError}>
-          <div className="co-m-nav-title co-m-nav-title--detail co-m-nav-title--breadcrumbs">
-            <BreadCrumbs
-              breadcrumbs={[
-                {
-                  name: t('public~Alerts'),
-                  path: namespace ? `/dev-monitoring/ns/${namespace}/alerts` : '/monitoring/alerts',
-                },
-                { name: t('public~Alert details'), path: undefined },
-              ]}
-            />
-            <h1 className="co-m-pane__heading">
-              <div data-test="resource-title" className="co-resource-item">
-                <MonitoringResourceIcon
-                  className="co-m-resource-icon--lg"
-                  resource={AlertResource}
-                />
-                {labels?.alertname}
-                <SeverityBadge severity={labels?.severity} />
-              </div>
-              {state !== AlertStates.Silenced && (
-                <div className="co-actions" data-test-id="details-actions">
-                  <ActionButtons actionButtons={[silenceAlert(alert)]} />
-                </div>
-              )}
-            </h1>
-            <HeaderAlertMessage alert={alert} rule={rule} />
+    const queryParams: string = React.useMemo(() => location?.search, [location]);
+
+    const ele = (
+      <StatusBox data={alert} label={AlertResource.label} loaded={loaded} loadError={loadError}>
+        <h1 className="co-m-pane__heading">
+          <div data-test="resource-title" className="co-resource-item">
+            <MonitoringResourceIcon className="co-m-resource-icon--lg" resource={AlertResource} />
+            {labels?.alertname}
+            <SeverityBadge severity={labels?.severity} />
           </div>
-          <div className="co-m-pane__body">
-            <ToggleGraph />
-            <SectionHeading text={t('public~Alert details')} />
-            <div className="co-m-pane__body-group">
-              <div className="row">
-                <div className="col-sm-12">
-                  <Graph
-                    filterLabels={labels}
-                    namespace={namespace}
-                    query={rule?.query}
-                    ruleDuration={rule?.duration}
-                  />
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-sm-6">
-                  <dl className="co-m-pane__details">
-                    <dt>{t('public~Name')}</dt>
-                    <dd>{labels?.alertname}</dd>
-                    <dt>
-                      <PopoverField label={t('public~Severity')} body={severityHelp} />
-                    </dt>
-                    <dd>
-                      <Severity severity={labels?.severity} />
-                    </dd>
-                    {alert?.annotations?.description && (
-                      <Annotation title={t('public~Description')}>
-                        <AlertMessage
-                          alertText={alert.annotations.description}
-                          labels={labels}
-                          template={rule?.annotations.description}
-                        />
-                      </Annotation>
-                    )}
-                    <Annotation title={t('public~Summary')}>
-                      {alert?.annotations?.summary}
-                    </Annotation>
-                    {alert?.annotations?.message && (
-                      <Annotation title={t('public~Message')}>
-                        <AlertMessage
-                          alertText={alert.annotations.message}
-                          labels={labels}
-                          template={rule?.annotations.message}
-                        />
-                      </Annotation>
-                    )}
-                  </dl>
-                </div>
-                <div className="col-sm-6">
-                  <dl className="co-m-pane__details">
-                    <dt>
-                      <PopoverField label={t('public~Source')} body={sourceHelp} />
-                    </dt>
-                    <dd>{alert && _.startCase(alertSource(alert))}</dd>
-                    <dt>
-                      <PopoverField label={t('public~State')} body={alertStateHelp} />
-                    </dt>
-                    <dd>
-                      <AlertState state={state} />
-                      <AlertStateDescription alert={alert} />
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-xs-12">
-                  <dl className="co-m-pane__details" data-test="label-list">
-                    <dt>{t('public~Labels')}</dt>
-                    <dd>
-                      {_.isEmpty(labels) ? (
-                        <div className="text-muted">No labels</div>
-                      ) : (
-                        <div className={`co-text-${AlertResource.kind.toLowerCase()}`}>
-                          {_.map(labels, (v, k) => (
-                            <Label key={k} k={k} v={v} />
-                          ))}
-                        </div>
-                      )}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-xs-12">
-                  <dl className="co-m-pane__details">
-                    <dt>{t('public~Alerting rule')}</dt>
-                    <dd>
-                      <div className="co-resource-item">
-                        <MonitoringResourceIcon resource={RuleResource} />
-                        <Link
-                          to={
-                            namespace
-                              ? `/dev-monitoring/ns/${namespace}/rules/${rule?.id}`
-                              : ruleURL(rule)
-                          }
-                          data-test="alert-rules-detail-resource-link"
-                          className="co-resource-item__resource-name"
-                        >
-                          {_.get(rule, 'name')}
-                        </Link>
-                      </div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-          {silencesLoaded && !_.isEmpty(alert?.silencedBy) && (
-            <div className="co-m-pane__body">
-              <div className="co-m-pane__body-group">
-                <SectionHeading text="Silenced By" />
-                <div className="row">
-                  <div className="col-xs-12">
-                    <Table
-                      aria-label="Silenced By"
-                      data={alert?.silencedBy}
-                      Header={silencesTableHeader}
-                      loaded={true}
-                      Row={SilenceTableRow}
-                    />
-                  </div>
-                </div>
-              </div>
+          {state !== AlertStates.Silenced && (
+            <div className="co-actions" data-test-id="details-actions">
+              <ActionButtons actionButtons={[silenceAlert(alert)]} />
             </div>
           )}
-        </StatusBox>
-      </>
+        </h1>
+        <HeaderAlertMessage alert={alert} rule={rule} />
+      </StatusBox>
+    );
+
+    const alertPodObj = {
+      namespace: alert?.labels.namespace,
+      kind: 'Pod',
+      kindObj: {
+        apiVersion: 'v1',
+        label: 'Pod',
+        labelKey: 'public~Pod',
+        plural: 'pods',
+        abbr: 'P',
+        namespaced: true,
+        kind: 'Pod',
+        id: 'pod',
+        labelPlural: 'Pods',
+        labelPluralKey: 'public~Pods',
+      },
+      name: alert?.labels.pod,
+      badge: null,
+    };
+
+    return (
+      <DetailsPage
+        match={match}
+        namespace={alertPodObj.namespace}
+        kind={alertPodObj.kind}
+        kindObj={alertPodObj.kindObj}
+        name={alertPodObj.name}
+        ele={ele}
+        breadcrumbsFor={() => [
+          {
+            name: t('public~Alerts'),
+            path: namespace ? `/dev-monitoring/ns/${namespace}/alerts` : '/monitoring/alerts',
+          },
+          { name: t('public~Alert details'), path: undefined },
+        ]}
+        pages={[
+          {
+            href: '',
+            queryParams,
+            // t('public~Details')
+            nameKey: 'public~Details',
+            component: Details,
+            pageData: {
+              alert,
+              rule,
+              namespace: alertPodObj.namespace,
+              silencesLoaded,
+            },
+          },
+          {
+            href: 'logs',
+            queryParams,
+            // t('public~Logs')
+            nameKey: 'public~Logs',
+            component: AlertLogs,
+          },
+        ]}
+      />
     );
   }),
 );
@@ -778,47 +787,52 @@ const PrometheusTemplate = ({ text }) => (
   </>
 );
 
-const ActiveAlerts = ({ alerts, ruleID, namespace }) => (
-  <div className="co-m-table-grid co-m-table-grid--bordered">
-    <div className="row co-m-table-grid__head">
-      <div className="col-xs-6">Description</div>
-      <div className="col-sm-2 hidden-xs">Active Since</div>
-      <div className="col-sm-2 col-xs-3">State</div>
-      <div className="col-sm-2 col-xs-3">Value</div>
-    </div>
-    <div className="co-m-table-grid__body">
-      {_.sortBy(alerts, alertDescription).map((a, i) => (
-        <div className="row co-resource-list__item" key={i}>
-          <div className="col-xs-6">
-            <Link
-              className="co-resource-item"
-              data-test="active-alerts"
-              to={
-                namespace
-                  ? `/dev-monitoring/ns/${namespace}/alerts/${ruleID}?${labelsToParams(a.labels)}`
-                  : alertURL(a, ruleID)
-              }
-            >
-              {alertDescription(a)}
-            </Link>
-          </div>
-          <div className="col-sm-2 hidden-xs">
-            <Timestamp timestamp={a.activeAt} />
-          </div>
-          <div className="col-sm-2 col-xs-3">
-            <AlertState state={a.state} />
-          </div>
-          <div className="col-sm-2 col-xs-3 co-truncate">{a.value}</div>
-          {a.state !== AlertStates.Silenced && (
-            <div className="dropdown-kebab-pf">
-              <Kebab options={[silenceAlert(a)]} />
+const ActiveAlerts: React.FC<{ alerts; ruleID: string; namespace: string }> = (props) => {
+  const { t } = useTranslation();
+  const { alerts, ruleID, namespace } = props;
+
+  return (
+    <div className="co-m-table-grid co-m-table-grid--bordered">
+      <div className="row co-m-table-grid__head">
+        <div className="col-xs-6">{t('public~Description')}</div>
+        <div className="col-sm-2 hidden-xs">{t('public~Active since')}</div>
+        <div className="col-sm-2 col-xs-3">{t('public~State')}</div>
+        <div className="col-sm-2 col-xs-3">{t('public~Value')}</div>
+      </div>
+      <div className="co-m-table-grid__body">
+        {_.sortBy(alerts, alertDescription).map((a, i) => (
+          <div className="row co-resource-list__item" key={i}>
+            <div className="col-xs-6">
+              <Link
+                className="co-resource-item"
+                data-test="active-alerts"
+                to={
+                  namespace
+                    ? `/dev-monitoring/ns/${namespace}/alerts/${ruleID}?${labelsToParams(a.labels)}`
+                    : alertURL(a, ruleID)
+                }
+              >
+                {alertDescription(a)}
+              </Link>
             </div>
-          )}
-        </div>
-      ))}
+            <div className="col-sm-2 hidden-xs">
+              <Timestamp timestamp={a.activeAt} />
+            </div>
+            <div className="col-sm-2 col-xs-3">
+              <AlertState state={a.state} />
+            </div>
+            <div className="col-sm-2 col-xs-3 co-truncate">{a.value}</div>
+            {a.state !== AlertStates.Silenced && (
+              <div className="dropdown-kebab-pf">
+                <Kebab options={[silenceAlert(a)]} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ruleStateToProps = (state: RootState, { match }): AlertRulesDetailsPageProps => {
   const perspective = _.has(match.params, 'ns') ? 'dev' : 'admin';
@@ -837,7 +851,7 @@ export const AlertRulesDetailsPage = withFallback(
 
     const { t } = useTranslation();
 
-    const formatLegendLabel = (alertLabels) => {
+    const formatSeriesTitle = (alertLabels) => {
       const nameLabel = alertLabels.__name__ ?? '';
       const otherLabels = _.omit(alertLabels, '__name__');
       return `${nameLabel}{${_.map(otherLabels, (v, k) => `${k}="${v}"`).join(',')}}`;
@@ -846,7 +860,7 @@ export const AlertRulesDetailsPage = withFallback(
     return (
       <>
         <Helmet>
-          <title>{`${name || RuleResource.label} · Details`}</title>
+          <title>{t('public~{{name}} details', { name: name || RuleResource.label })}</title>
         </Helmet>
         <StatusBox data={rule} label={RuleResource.label} loaded={loaded} loadError={loadError}>
           <div className="co-m-nav-title co-m-nav-title--detail co-m-nav-title--breadcrumbs">
@@ -883,7 +897,7 @@ export const AlertRulesDetailsPage = withFallback(
                     <dt>{t('public~Name')}</dt>
                     <dd>{name}</dd>
                     <dt>
-                      <PopoverField label={t('public~Severity')} body={severityHelp} />
+                      <PopoverField label={t('public~Severity')} body={SeverityHelp} />
                     </dt>
                     <dd>
                       <Severity severity={severity} />
@@ -900,9 +914,9 @@ export const AlertRulesDetailsPage = withFallback(
                 <div className="col-sm-6">
                   <dl className="co-m-pane__details">
                     <dt>
-                      <PopoverField label={t('public~Source')} body={sourceHelp} />
+                      <PopoverField label={t('public~Source')} body={SourceHelp} />
                     </dt>
-                    <dd>{rule && _.startCase(alertingRuleSource(rule))}</dd>
+                    <dd>{rule && getSourceKey(_.startCase(alertingRuleSource(rule)))}</dd>
                     {_.isInteger(duration) && (
                       <>
                         <dt>{t('public~For')}</dt>
@@ -945,10 +959,11 @@ export const AlertRulesDetailsPage = withFallback(
               <div className="row">
                 <div className="col-sm-12">
                   <Graph
-                    formatLegendLabel={formatLegendLabel}
+                    formatSeriesTitle={formatSeriesTitle}
                     namespace={namespace}
                     query={rule?.query}
                     ruleDuration={rule?.duration}
+                    showLegend
                   />
                 </div>
               </div>
@@ -1025,7 +1040,7 @@ const SilencesDetailsPage = withFallback(
     return (
       <>
         <Helmet>
-          <title>{`${name || SilenceResource.label} · Details`}</title>
+          <title>{t('public~{{name}} details', { name: name || SilenceResource.label })}</title>
         </Helmet>
         <StatusBox
           data={silence}
@@ -1074,7 +1089,7 @@ const SilencesDetailsPage = withFallback(
                     <dt>{t('public~Matchers')}</dt>
                     <dd data-test="label-list">
                       {_.isEmpty(matchers) ? (
-                        <div className="text-muted">No matchers</div>
+                        <div className="text-muted">{t('public~No matchers')}</div>
                       ) : (
                         <SilenceMatchersList silence={silence} />
                       )}
@@ -1164,7 +1179,9 @@ const AlertTableRow: RowFunction<Alert> = ({ index, key, obj, style }) => {
         <AlertStateDescription alert={obj} />
       </TableData>
       <TableData className={tableAlertClasses[3]}>
-        {alertSource(obj) === AlertSource.User ? 'User' : 'Platform'}
+        {alertSource(obj) === AlertSource.User
+          ? i18next.t('public~User')
+          : i18next.t('public~Platform')}
       </TableData>
       <TableData className={tableAlertClasses[4]}>
         <Kebab
@@ -1179,47 +1196,37 @@ const AlertTableRow: RowFunction<Alert> = ({ index, key, obj, style }) => {
   );
 };
 
-const HeaderAlertmanagerLink = ({ path }) =>
-  _.isEmpty(window.SERVER_FLAGS.alertManagerPublicURL) ? null : (
-    <span className="monitoring-header-link">
-      <ExternalLink
-        href={`${window.SERVER_FLAGS.alertManagerPublicURL}${path || ''}`}
-        text="Alertmanager UI"
-      />
-    </span>
-  );
-
-export const severityRowFilter: RowFilter = {
-  filterGroupName: 'Severity',
+export const severityRowFilter = (): RowFilter => ({
+  filterGroupName: i18next.t('public~Severity'),
   items: [
-    { id: AlertSeverity.Critical, title: 'Critical' },
-    { id: AlertSeverity.Warning, title: 'Warning' },
-    { id: AlertSeverity.Info, title: 'Info' },
-    { id: AlertSeverity.None, title: 'None' },
+    { id: AlertSeverity.Critical, title: i18next.t('public~Critical') },
+    { id: AlertSeverity.Warning, title: i18next.t('public~Warning') },
+    { id: AlertSeverity.Info, title: i18next.t('public~Info') },
+    { id: AlertSeverity.None, title: i18next.t('public~None') },
   ],
   reducer: ({ labels }: Alert | Rule) => labels?.severity,
   type: 'alert-severity',
-};
+});
 
-const alertsRowFilters: RowFilter[] = [
+const alertsRowFilters = (): RowFilter[] => [
   {
     defaultSelected: [AlertStates.Firing],
-    filterGroupName: 'Alert State',
+    filterGroupName: i18next.t('public~Alert State'),
     items: [
-      { id: AlertStates.Firing, title: 'Firing' },
-      { id: AlertStates.Pending, title: 'Pending' },
-      { id: AlertStates.Silenced, title: 'Silenced' },
+      { id: AlertStates.Firing, title: i18next.t('public~Firing') },
+      { id: AlertStates.Pending, title: i18next.t('public~Pending') },
+      { id: AlertStates.Silenced, title: i18next.t('public~Silenced') },
     ],
     reducer: alertState,
     type: 'alert-state',
   },
-  severityRowFilter,
+  severityRowFilter(),
   {
     defaultSelected: [AlertSource.Platform],
-    filterGroupName: 'Source',
+    filterGroupName: i18next.t('public~Source'),
     items: [
-      { id: AlertSource.Platform, title: 'Platform' },
-      { id: AlertSource.User, title: 'User' },
+      { id: AlertSource.Platform, title: i18next.t('public~Platform') },
+      { id: AlertSource.User, title: i18next.t('public~User') },
     ],
     reducer: alertSource,
     type: 'alert-source',
@@ -1351,7 +1358,7 @@ const AlertsPage_: React.FC<Alerts> = ({ data, loaded, loadError }) => {
       nameFilterID="resource-list-text"
       reduxID="monitoringAlerts"
       Row={AlertTableRow}
-      rowFilters={alertsRowFilters}
+      rowFilters={alertsRowFilters()}
     />
   );
 };
@@ -1365,33 +1372,18 @@ const ruleAlertStateFilter = (filter, rule: Rule) =>
   _.some(rule.alerts, (a) => filter.selected.has(a.state)) ||
   _.isEmpty(filter.selected);
 
-export const alertStateFilter: RowFilter = {
+export const alertStateFilter = (): RowFilter => ({
   filter: ruleAlertStateFilter,
-  filterGroupName: 'Alert State',
+  filterGroupName: i18next.t('public~Alert State'),
   isMatch: ruleHasAlertState,
   items: [
-    { id: AlertStates.Firing, title: 'Firing' },
-    { id: AlertStates.Pending, title: 'Pending' },
-    { id: AlertStates.Silenced, title: 'Silenced' },
-    { id: AlertStates.NotFiring, title: 'Not Firing' },
+    { id: AlertStates.Firing, title: i18next.t('public~Firing') },
+    { id: AlertStates.Pending, title: i18next.t('public~Pending') },
+    { id: AlertStates.Silenced, title: i18next.t('public~Silenced') },
+    { id: AlertStates.NotFiring, title: i18next.t('public~Not Firing') },
   ],
   type: 'alerting-rule-has-alert-state',
-};
-
-const rulesRowFilters: RowFilter[] = [
-  alertStateFilter,
-  severityRowFilter,
-  {
-    defaultSelected: [AlertSource.Platform],
-    filterGroupName: 'Source',
-    items: [
-      { id: AlertSource.Platform, title: 'Platform' },
-      { id: AlertSource.User, title: 'User' },
-    ],
-    reducer: alertingRuleSource,
-    type: 'alerting-rule-source',
-  },
-];
+});
 
 const tableRuleClasses = [
   classNames('col-sm-4', 'col-xs-6'),
@@ -1423,7 +1415,9 @@ const RuleTableRow: RowFunction<Rule> = ({ index, key, obj, style }) => (
       {_.isEmpty(obj.alerts) ? '-' : <StateCounts alerts={obj.alerts} />}
     </TableData>
     <TableData className={tableRuleClasses[3]}>
-      {alertingRuleSource(obj) === AlertSource.User ? 'User' : 'Platform'}
+      {alertingRuleSource(obj) === AlertSource.User
+        ? i18next.t('public~User')
+        : i18next.t('public~Platform')}
     </TableData>
   </TableRow>
 );
@@ -1458,6 +1452,21 @@ const RulesPage_: React.FC<Rules> = ({ data, loaded, loadError }) => {
     },
   ];
 
+  const rulesRowFilters: RowFilter[] = [
+    alertStateFilter(),
+    severityRowFilter(),
+    {
+      defaultSelected: [AlertSource.Platform],
+      filterGroupName: t('public~Source'),
+      items: [
+        { id: AlertSource.Platform, title: t('public~Platform') },
+        { id: AlertSource.User, title: t('public~User') },
+      ],
+      reducer: alertingRuleSource,
+      type: 'alerting-rule-source',
+    },
+  ];
+
   return (
     <MonitoringListPage
       data={data}
@@ -1477,21 +1486,7 @@ const RulesPage_: React.FC<Rules> = ({ data, loaded, loadError }) => {
 };
 const RulesPage = withFallback(connect(rulesToProps)(RulesPage_));
 
-const silencesRowFilters: RowFilter[] = [
-  {
-    defaultSelected: [SilenceStates.Active, SilenceStates.Pending],
-    type: 'silence-state',
-    filterGroupName: 'Silence State',
-    reducer: silenceState,
-    items: [
-      { id: SilenceStates.Active, title: 'Active' },
-      { id: SilenceStates.Pending, title: 'Pending' },
-      { id: SilenceStates.Expired, title: 'Expired' },
-    ],
-  },
-];
-
-const CreateButton = () => {
+const CreateButton: React.FC = () => {
   const { t } = useTranslation();
 
   return (
@@ -1505,6 +1500,20 @@ const SilencesPage_: React.FC<Silences> = ({ data, loaded, loadError }) => {
   const { t } = useTranslation();
 
   const Header = () => getSilenceTableHeader(t);
+
+  const silencesRowFilters: RowFilter[] = [
+    {
+      defaultSelected: [SilenceStates.Active, SilenceStates.Pending],
+      type: 'silence-state',
+      filterGroupName: t('public~Silence State'),
+      reducer: silenceState,
+      items: [
+        { id: SilenceStates.Active, title: t('public~Active') },
+        { id: SilenceStates.Pending, title: t('public~Pending') },
+        { id: SilenceStates.Expired, title: t('public~Expired') },
+      ],
+    },
+  ];
 
   return (
     <MonitoringListPage
@@ -1605,9 +1614,8 @@ const AlertingPage: React.FC<AlertingPageProps> = ({ match }) => {
         <h1 className="co-m-pane__heading">
           <div className="co-m-pane__name co-resource-item">
             <span className="co-resource-item__resource-name" data-test-id="resource-title">
-              {isAlertmanager ? 'Alertmanager' : t('public~Alerting')}
+              {isAlertmanager ? t('public~Alertmanager') : t('public~Alerting')}
             </span>
-            <HeaderAlertmanagerLink path="/#/alerts" />
           </div>
         </h1>
       </div>
@@ -1628,10 +1636,10 @@ const AlertingPage: React.FC<AlertingPageProps> = ({ match }) => {
         {isAlertmanager && (
           <>
             <Tab active={url === configPath}>
-              <Link to={configPath}>Details</Link>
+              <Link to={configPath}>{t('public~Details')}</Link>
             </Tab>
             <Tab active={url === YAMLPath}>
-              <Link to={YAMLPath}>YAML</Link>
+              <Link to={YAMLPath}>{t('public~YAML')}</Link>
             </Tab>
           </>
         )}
@@ -1684,7 +1692,7 @@ const PollerPages = () => {
         component={AlertingPage}
       />
       <Route path="/monitoring/alertrules/:id" exact component={AlertRulesDetailsPage} />
-      <Route path="/monitoring/alerts/:ruleID" exact component={AlertsDetailsPage} />
+      <Route path="/monitoring/alerts/:ruleID" component={AlertsDetailsPage} />
       <Route path="/monitoring/silences/:id" exact component={SilencesDetailsPage} />
       <Route path="/monitoring/silences/:id/edit" exact component={EditSilence} />
     </Switch>
@@ -1712,6 +1720,8 @@ type AlertsDetailsPageProps = {
   namespace: string;
   rule: Rule;
   silencesLoaded: boolean;
+  match?: any;
+  location?: Location<any>;
 };
 
 type AlertMessageProps = {
@@ -1741,10 +1751,11 @@ type AlertingPageProps = {
 
 type GraphProps = {
   filterLabels?: PrometheusLabels;
-  formatLegendLabel?: FormatLegendLabel;
+  formatSeriesTitle?: FormatSeriesTitle;
   namespace?: string;
   query: string;
   ruleDuration: number;
+  showLegend?: boolean;
 };
 
 type MonitoringResourceIconProps = {

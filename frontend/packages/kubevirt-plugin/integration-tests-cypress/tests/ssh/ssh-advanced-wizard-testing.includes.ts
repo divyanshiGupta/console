@@ -12,8 +12,10 @@ export default ({ vmName }) =>
       cy.byLegacyTestID('wizard-next')
         .as('nextButton')
         .click();
-      cy.byTestID('SupportModal').within(() => {
-        cy.get('[id=confirm-action]').click();
+      cy.get('body').then(($body) => {
+        if ($body.find('[data-test-id="modal-title"]').length) {
+          cy.get('[id=confirm-action]').click();
+        }
       });
       cy.get('[id=image-source-type-dropdown]').click();
       cy.contains('Import via Registry (creates PVC)').click();

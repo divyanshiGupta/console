@@ -20,15 +20,15 @@ import { getDescription } from '../../selectors/selectors';
 import { getOperatingSystem, getOperatingSystemName, getVMLikeModel } from '../../selectors/vm';
 import { isBootOrderChanged, isFlavorChanged } from '../../selectors/vm-like/next-run-changes';
 import { getFlavorData } from '../../selectors/vm/flavor-data';
-import { isVMRunningOrExpectedRunning } from '../../selectors/vm/selectors';
+import { isVMIReady, isVMRunningOrExpectedRunning } from '../../selectors/vm/selectors';
 import { getVMINodeName, isVMIPaused } from '../../selectors/vmi';
 import { getVmiIpAddresses } from '../../selectors/vmi/ip-address';
 import { VMStatusBundle } from '../../statuses/vm/types';
 import { VMIKind, VMKind } from '../../types';
 import { getBasicID, prefixedID } from '../../utils';
 import { getGuestAgentFieldNotAvailMsg } from '../../utils/guest-agent-strings';
+import { isGuestAgentInstalled } from '../../utils/guest-agent-utils';
 import { BootOrderSummary } from '../boot-order';
-import { isGuestAgentInstalled } from '../dashboards-page/vm-dashboard/vm-alerts';
 import { EditButton } from '../edit-button';
 import { descriptionModal, vmFlavorModal } from '../modals';
 import { BootOrderModal } from '../modals/boot-order-modal/boot-order-modal';
@@ -164,7 +164,7 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
         idValue={prefixedID(id, 'boot-order')}
         arePendingChanges={
           isVM &&
-          isVMRunningOrExpectedRunning(vm) &&
+          isVMRunningOrExpectedRunning(vm, vmi) &&
           isBootOrderChanged(new VMWrapper(vm), new VMIWrapper(vmi))
         }
       >
@@ -217,7 +217,7 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
         title={t('kubevirt-plugin~User credentials')}
         idValue={prefixedID(id, 'authorized-ssh-key')}
       >
-        <SSHDetailsPage vm={vmiLike} />
+        <SSHDetailsPage vm={vmiLike} isVMIReady={isVMIReady(vmi)} />
       </VMDetailsItem>
     </dl>
   );
@@ -238,7 +238,7 @@ export const VMSchedulingList: React.FC<VMSchedulingListProps> = ({
     vmiLike &&
     canUpdateVM &&
     kindObj !== VirtualMachineInstanceModel &&
-    !isVMRunningOrExpectedRunning(vm);
+    !isVMRunningOrExpectedRunning(vm, vmi);
 
   const id = getBasicID(vmiLike);
   const flavorText = t(
@@ -318,7 +318,7 @@ export const VMSchedulingList: React.FC<VMSchedulingListProps> = ({
             isNotAvail={!flavorText}
             arePendingChanges={
               isVM &&
-              isVMRunningOrExpectedRunning(vm) &&
+              isVMRunningOrExpectedRunning(vm, vmi) &&
               isFlavorChanged(new VMWrapper(vm), new VMIWrapper(vmi))
             }
           >

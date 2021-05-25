@@ -4,23 +4,17 @@ import {
   Plugin,
   ModelFeatureFlag,
   KebabActions,
-  NavSection,
-  HrefNavItem,
-  ResourceNSNavItem,
-  ResourceClusterNavItem,
   ResourceListPage,
   ResourceDetailsPage,
   Perspective,
   RoutePage,
   OverviewResourceTab,
-  YAMLTemplate,
   OverviewTabSection,
   GuidedTour,
   PostFormSubmissionAction,
   CustomFeatureFlag,
 } from '@console/plugin-sdk';
 import { NamespaceRedirect } from '@console/internal/components/utils/namespace-redirect';
-import { FLAGS } from '@console/shared/src/constants';
 import { SecretModel, ConfigMapModel } from '@console/internal/models';
 import { referenceForModel } from '@console/internal/module/k8s';
 import { doConnectsToBinding } from '@console/topology/src/utils/connector-utils';
@@ -31,141 +25,18 @@ import { getGuidedTour } from './components/guided-tour';
 
 type ConsumedExtensions =
   | ModelFeatureFlag
-  | NavSection
   | CustomFeatureFlag
-  | HrefNavItem
-  | ResourceClusterNavItem
-  | ResourceNSNavItem
   | ResourceListPage
   | ResourceDetailsPage
   | Perspective
   | RoutePage
   | KebabActions
   | OverviewResourceTab
-  | YAMLTemplate
   | OverviewTabSection
   | GuidedTour
   | PostFormSubmissionAction;
 
 const plugin: Plugin<ConsumedExtensions> = [
-  {
-    type: 'Nav/Section',
-    properties: {
-      id: 'top',
-      perspective: 'dev',
-    },
-  },
-  {
-    type: 'Nav/Section',
-    properties: {
-      id: 'resources',
-      perspective: 'dev',
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      id: 'add',
-      perspective: 'dev',
-      section: 'top',
-      componentProps: {
-        // t('devconsole~+Add')
-        name: '%devconsole~+Add%',
-        href: '/add',
-        testID: '+Add-header',
-        'data-quickstart-id': 'qs-nav-add',
-      },
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      id: 'topology',
-      perspective: 'dev',
-      section: 'top',
-      componentProps: {
-        // t('devconsole~Topology')
-        name: '%devconsole~Topology%',
-        href: '/topology',
-        testID: 'topology-header',
-        'data-quickstart-id': 'qs-nav-topology',
-      },
-    },
-    flags: {
-      required: [FLAGS.OPENSHIFT],
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      id: 'monitoring',
-      perspective: 'dev',
-      section: 'top',
-      componentProps: {
-        // t('devconsole~Monitoring')
-        name: '%devconsole~Monitoring%',
-        href: '/dev-monitoring',
-        testID: 'monitoring-header',
-        'data-tour-id': 'tour-monitoring-nav',
-        'data-quickstart-id': 'qs-nav-monitoring',
-      },
-    },
-    flags: {
-      required: [FLAGS.OPENSHIFT],
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      id: 'search',
-      perspective: 'dev',
-      section: 'top',
-      componentProps: {
-        // t('devconsole~Search')
-        name: '%devconsole~Search%',
-        href: '/search',
-        testID: 'search-header',
-        'data-tour-id': 'tour-search-nav',
-        'data-quickstart-id': 'qs-nav-search',
-      },
-    },
-  },
-  {
-    type: 'NavItem/ResourceNS',
-    properties: {
-      id: 'builds',
-      perspective: 'dev',
-      section: 'resources',
-      componentProps: {
-        // t('devconsole~Builds')
-        name: '%devconsole~Builds%',
-        resource: 'buildconfigs',
-        testID: 'build-header',
-        'data-quickstart-id': 'qs-nav-builds',
-      },
-    },
-    flags: {
-      required: [FLAGS.OPENSHIFT],
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      id: 'project',
-      perspective: 'dev',
-      section: 'resources',
-      componentProps: {
-        // t('devconsole~Project')
-        name: '%devconsole~Project%',
-        href: '/project-details',
-        testID: 'project-details-header',
-        'data-quickstart-id': 'qs-nav-project',
-      },
-    },
-    flags: {
-      required: [FLAGS.OPENSHIFT],
-    },
-  },
   {
     type: 'Overview/Resource',
     properties: {
@@ -218,7 +89,8 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: true,
       path: ['/add/all-namespaces', '/add/ns/:ns'],
       loader: async () =>
-        (await import('./components/AddPage' /* webpackChunkName: "dev-console-add" */)).default,
+        (await import('./components/add/AddPage' /* webpackChunkName: "dev-console-add" */))
+          .default,
     },
   },
   {
@@ -271,6 +143,19 @@ const plugin: Plugin<ConsumedExtensions> = [
     type: 'Page/Route',
     properties: {
       exact: true,
+      path: '/edit-deployment/ns/:ns',
+      loader: async () =>
+        (
+          await import(
+            './components/edit-deployment/EditDeploymentPage' /* webpackChunkName: "dev-console-edit-deployment" */
+          )
+        ).default,
+    },
+  },
+  {
+    type: 'Page/Route',
+    properties: {
+      exact: true,
       path: ['/import/all-namespaces', '/import/ns/:ns'],
       loader: async () =>
         (
@@ -297,7 +182,7 @@ const plugin: Plugin<ConsumedExtensions> = [
     type: 'Page/Route',
     properties: {
       exact: true,
-      path: ['/samples/ns/:ns/:is/:isNs'],
+      path: ['/samples/all-namespaces/:is/:isNs', '/samples/ns/:ns/:is/:isNs'],
       loader: async () =>
         (
           await import(

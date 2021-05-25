@@ -1,21 +1,15 @@
 import * as _ from 'lodash';
 import * as React from 'react';
 import { DashboardsStorageCapacityDropdownItem } from '@console/ceph-storage-plugin';
-import { PersistentVolumeClaimModel, PodModel, TemplateModel } from '@console/internal/models';
+import { PersistentVolumeClaimModel, PodModel } from '@console/internal/models';
 import {
+  Plugin,
+  ModelDefinition,
   DashboardsInventoryItemGroup,
   DashboardsOverviewHealthURLSubsystem,
   DashboardsOverviewInventoryItem,
   DashboardsOverviewResourceActivity,
-  ModelDefinition,
-  Plugin,
   ProjectDashboardInventoryItem,
-  ReduxReducer,
-  ResourceDetailsPage,
-  ResourceListPage,
-  ResourceNSNavItem,
-  RoutePage,
-  YAMLTemplate,
 } from '@console/plugin-sdk';
 import { getName } from '@console/shared/src/selectors/common';
 import { getKubevirtHealthState } from './components/dashboards-page/overview-dashboard/health';
@@ -25,25 +19,17 @@ import {
 } from './components/dashboards-page/overview-dashboard/inventory';
 import { diskImportKindMapping } from './components/dashboards-page/overview-dashboard/utils';
 import * as models from './models';
-import { VirtualMachineYAMLTemplates, VMTemplateYAMLTemplates } from './models/templates';
-import kubevirtReducer from './redux';
 import { getTopologyPlugin, TopologyConsumedExtensions } from './topology/topology-plugin';
 
 import '@console/internal/i18n.js';
 import './style.scss';
 
 type ConsumedExtensions =
-  | ResourceNSNavItem
-  | ResourceListPage
-  | ResourceDetailsPage
-  | YAMLTemplate
   | ModelDefinition
-  | RoutePage
   | DashboardsOverviewHealthURLSubsystem
   | DashboardsOverviewInventoryItem
   | DashboardsInventoryItemGroup
   | DashboardsStorageCapacityDropdownItem
-  | ReduxReducer
   | ProjectDashboardInventoryItem
   | DashboardsOverviewResourceActivity
   | TopologyConsumedExtensions;
@@ -55,239 +41,6 @@ const plugin: Plugin<ConsumedExtensions> = [
     type: 'ModelDefinition',
     properties: {
       models: _.values(models),
-    },
-  },
-  {
-    type: 'NavItem/ResourceNS',
-    properties: {
-      id: 'virtualization',
-      section: 'workloads',
-      componentProps: {
-        // t('kubevirt-plugin~Virtualization')
-        name: '%kubevirt-plugin~Virtualization%',
-        resource: 'virtualization',
-      },
-      insertBefore: 'deployments',
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'YAMLTemplate',
-    properties: {
-      model: models.VirtualMachineModel,
-      template: VirtualMachineYAMLTemplates.getIn(['default']),
-    },
-  },
-  {
-    type: 'YAMLTemplate',
-    properties: {
-      model: TemplateModel,
-      template: VMTemplateYAMLTemplates.getIn(['vm-template']),
-      templateName: 'vm-template',
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      exact: true,
-      path: ['/k8s/ns/:ns/persistentvolumeclaims/~new/upload-form'],
-      loader: () =>
-        import(
-          './components/cdi-upload-provider/upload-pvc-form/upload-pvc-form' /* webpackChunkName: "kubevirt" */
-        ).then((m) => m.UploadPVCPage),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      exact: true,
-      path: ['/k8s/ns/:ns/virtualization/~new'],
-      loader: () =>
-        import('./components/vms/vm-create-yaml' /* webpackChunkName: "kubevirt" */).then(
-          (m) => m.VMCreateYAML,
-        ),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      exact: true,
-      path: ['/k8s/ns/:ns/virtualization/~new-wizard'],
-      loader: () =>
-        import(
-          './components/create-vm-wizard' /* webpackChunkName: "kubevirt-create-vm-wizard" */
-        ).then((m) => m.CreateVMWizardPage),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      exact: true,
-      path: ['/k8s/virtualization/~new-from-template'],
-      loader: () =>
-        import(
-          './components/create-vm/create-vm' /* webpackChunkName: "kubevirt-create-vm" */
-        ).then((m) => m.CreateVM),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      path: '/k8s/ns/:ns/virtualmachines/:name',
-      loader: () =>
-        import('./components/vms/vm-details-page' /* webpackChunkName: "kubevirt" */).then(
-          (m) => m.VirtualMachinesDetailsPage,
-        ),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      path: '/k8s/ns/:ns/virtualmachineinstances/:name',
-      loader: () =>
-        import('./components/vms/vmi-details-page' /* webpackChunkName: "kubevirt" */).then(
-          (m) => m.VirtualMachinesInstanceDetailsPage,
-        ),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      path: ['/k8s/ns/:ns/virtualization', '/k8s/all-namespaces/virtualization'],
-      loader: () =>
-        import('./components/vms/virtualization' /* webpackChunkName: "kubevirt" */).then(
-          (m) => m.VirtualizationPage,
-        ),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      exact: true,
-      path: ['/k8s/ns/:ns/virtualmachines', '/k8s/all-namespaces/virtualmachines'],
-      loader: () =>
-        import('./components/vms/virtualization' /* webpackChunkName: "kubevirt" */).then(
-          (m) => m.RedirectToVirtualizationPage,
-        ),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      exact: true,
-      path: ['/k8s/ns/:ns/vmtemplates', '/k8s/all-namespaces/vmtemplates'],
-      loader: () =>
-        import('./components/vms/virtualization' /* webpackChunkName: "kubevirt" */).then(
-          (m) => m.RedirectToVirtualizationTemplatePage,
-        ),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      path: '/k8s/ns/:ns/vmtemplates/:name',
-      loader: () =>
-        import(
-          './components/vm-templates/vm-template-details-page' /* webpackChunkName: "kubevirt" */
-        ).then((m) => m.VMTemplateDetailsPage),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      exact: true,
-      path: ['/k8s/ns/:ns/vmtemplates', '/k8s/all-namespaces/vmtemplates'],
-      loader: () =>
-        import('./components/vm-templates/vm-template' /* webpackChunkName: "kubevirt" */).then(
-          (m) => m.VirtualMachineTemplatesPage,
-        ),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      path: '/k8s/ns/:ns/virtualmachinesnapshots/:name',
-      loader: () =>
-        import(
-          './components/vm-snapshots/vm-snapshot-details' /* webpackChunkName: "kubevirt" */
-        ).then((m) => m.SnapshotDetailsPage),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      path: '/catalog/create-vm',
-      loader: () =>
-        import(
-          './components/create-vm/dev-console/dev-console-create-vm-form' /* webpackChunkName: "kubevirt" */
-        ).then((m) => m.DevConsoleCreateVmForm),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      path: '/virtualization/new-customize-source',
-      loader: () =>
-        import(
-          './components/vm-templates/customize-source/CustomizeSourceForm' /* webpackChunkName: "kubevirt" */
-        ).then((m) => m.default),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      path: '/virtualization/customize-source',
-      loader: () =>
-        import(
-          './components/vm-templates/customize-source/CustomizeSource' /* webpackChunkName: "kubevirt" */
-        ).then((m) => m.default),
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
     },
   },
   {
@@ -362,16 +115,6 @@ const plugin: Plugin<ConsumedExtensions> = [
         'sum((kube_persistentvolumeclaim_resource_requests_storage_bytes * on (namespace,persistentvolumeclaim) group_right() kube_pod_spec_volumes_persistentvolumeclaims_info{pod !~"virt-launcher-.*"}) * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)|(ceph.rook.io/block)"}))',
       ],
       required: FLAG_KUBEVIRT,
-    },
-  },
-  {
-    type: 'ReduxReducer',
-    properties: {
-      namespace: 'kubevirt',
-      reducer: kubevirtReducer,
-    },
-    flags: {
-      required: [FLAG_KUBEVIRT],
     },
   },
   {

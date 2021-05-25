@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+import i18n from 'i18next';
 import {
   history,
   resourcePathFromModel,
@@ -46,7 +47,11 @@ export const reRunPipelineRun: KebabAction = (kind: K8sKind, pipelineRun: Pipeli
     if (namespace && (pipelineRef?.name || pipelineSpec)) {
       k8sCreate(PipelineRunModel, getPipelineRunData(null, pipelineRun));
     } else {
-      errorModal({ error: 'Invalid Pipeline Run configuration, unable to start Pipeline.' });
+      errorModal({
+        error: i18n.t(
+          'pipelines-plugin~Invalid PipelineRun configuration, unable to start Pipeline.',
+        ),
+      });
     }
   },
   accessReview: {
@@ -99,9 +104,8 @@ export const startPipeline: KebabAction = (
     }
   },
   accessReview: {
-    group: kind.apiGroup,
-    resource: kind.plural,
-    name: pipeline.metadata.name,
+    group: PipelineRunModel.apiGroup,
+    resource: PipelineRunModel.plural,
     namespace: pipeline.metadata.namespace,
     verb: 'create',
   },
@@ -115,11 +119,12 @@ const rerunPipeline: KebabAction = (
   kind: K8sKind,
   pipelineRun: PipelineRunKind,
   resources: any,
-  customData: RerunPipelineData = { labelKey: 'Start Last Run' },
+  customData: RerunPipelineData = {},
 ) => {
-  const { onComplete } = customData;
+  // t('pipelines-plugin~Start last run')
+  const { labelKey = 'pipelines-plugin~Start last run', onComplete } = customData;
 
-  const sharedProps = { labelKey: customData.labelKey, accessReview: {} };
+  const sharedProps = { labelKey, accessReview: {} };
 
   if (
     !pipelineRun ||
@@ -260,3 +265,5 @@ export const getPipelineRunKebabActions = (redirectReRun?: boolean): KebabAction
   (model, pipelineRun) => stopPipelineRun(model, pipelineRun),
   Kebab.factory.Delete,
 ];
+
+export const getTaskRunKebabActions = (): KebabAction[] => [Kebab.factory.Delete];

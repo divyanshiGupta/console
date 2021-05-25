@@ -1,6 +1,7 @@
 import { JSONSchema6 } from 'json-schema';
 import { ValidatedOptions, TextInputTypes, gridItemSpanValueShape } from '@patternfly/react-core';
 import { K8sKind, K8sResourceKind } from '@console/internal/module/k8s';
+import { RowRendererProps } from './multi-column-field/MultiColumnFieldRow';
 
 export interface FieldProps {
   name: string;
@@ -22,6 +23,7 @@ export interface BaseInputFieldProps extends FieldProps {
   placeholder?: string;
   onChange?: (event) => void;
   onBlur?: (event) => void;
+  autoComplete?: string;
 }
 
 export interface GroupInputProps extends BaseInputFieldProps {
@@ -63,7 +65,7 @@ export interface DropdownFieldProps extends FieldProps {
   onChange?: (value: string) => void;
 }
 
-export type FormSelectFieldOptions<T = any> = {
+export type FormSelectFieldOption<T = any> = {
   label: string;
   value: T;
   isPlaceholder?: boolean;
@@ -71,8 +73,8 @@ export type FormSelectFieldOptions<T = any> = {
 };
 
 export type FormSelectFieldProps = FieldProps & {
-  disabled?: boolean;
-  options: FormSelectFieldOptions[];
+  isDisabled?: boolean;
+  options: FormSelectFieldOption[];
   onChange?: (selectedValue: any) => void;
 };
 
@@ -92,12 +94,13 @@ export interface ResourceLimitFieldProps extends FieldProps {
 export interface MultiColumnFieldProps extends FieldProps {
   addLabel?: string;
   toolTip?: string;
-  emptyValues: { [name: string]: string | boolean };
+  emptyValues: { [name: string]: string | boolean | string[] };
   emptyMessage?: string;
   headers: ({ name: string; required: boolean } | string)[];
   complexFields?: boolean[];
-  children: React.ReactNode;
+  children?: React.ReactNode;
   spans?: gridItemSpanValueShape[];
+  rowRenderer?: (row: RowRendererProps) => React.ReactNode;
 }
 
 export interface YAMLEditorFieldProps extends FieldProps {

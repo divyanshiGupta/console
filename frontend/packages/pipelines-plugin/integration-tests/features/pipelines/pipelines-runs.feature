@@ -166,7 +166,7 @@ Feature: Pipeline Runs
 
         @regression
         Scenario: Start LastRun from topology page : P-05-TC04
-            Given workload "nodejs-last-run" is created from add page with pipeline
+            Given user created workload "nodejs-last-run" from add page with pipeline
               And user started the pipeline "nodejs-last-run" in pipelines page
              When user navigates to Topology page
               And user clicks node "nodejs-last-run" to open the side bar
@@ -175,7 +175,7 @@ Feature: Pipeline Runs
 
 
         Scenario: Maximum pipeline runs display in topology page: P-05-TC05
-            Given workload "nodejs-ex-git-1" is created from add page with pipeline
+            Given user created workload "nodejs-last-run" from add page with pipeline
               And user is at pipelines page
               And pipeline "nodejs-ex-git-1" is executed for 5 times
              When user clicks node "nodejs-ex-git-1" to open the side bar
@@ -210,7 +210,7 @@ Feature: Pipeline Runs
 
         @regression
         Scenario Outline: Pipeline status display in topology side bar : P-05-TC02
-            Given workload "<pipeline_name>" is created from add page with pipeline
+            Given user created workload "<pipeline_name>" from add page with pipeline
               And user is at pipelines page
              When user selects "Start" option from kebab menu for pipeline "<pipeline_name>"
               And user starts the pipeline from start pipeline modal
@@ -248,7 +248,7 @@ Feature: Pipeline Runs
 
         @regression, @to-do
         Scenario: Display failure details of pipeline run in topology sidebar
-            Given user is in topology
+            Given user is at Topology page
               And a node with an associated pipeline that has failed is present
              When user opens sidebar of the node
               And user scrolls down to pipeline runs section
@@ -257,27 +257,19 @@ Feature: Pipeline Runs
               And user will also see the log snippet
 
 
-        @regression @to-do
-        Scenario Outline: Start pipeline modal with different Workspaces
-            Given pipeline "pipeline-workspace" with PVC "git-PVC" workspace is present
+        @regression @odc-3991
+        Scenario: Start pipeline modal with different Workspaces
+            Given pipeline "pipeline-workspace" is created with "git-PVC" workspace
              When user selects "Start" option from kebab menu for pipeline "pipeline-workspace"
               And user navigates to Workspaces section
-              And user clicks on dropdown with PVC selected by default to check options
+              And user clicks on "git-PVC" workspace dropdown with Empty Directory selected by default
              Then user sees option Empty Directory, Config Map, Secret, PersistentVolumeClaim, VolumeClaimTemplate
 
 
-        @regression @to-do
-        Scenario Outline: Start pipeline modal with Empty directory
-            Given pipeline "pipeline-no-workspace" with at least one workspace and no previous Pipeline Runs
-             When user selects "Start" option from kebab menu for pipeline "pipeline-no-workspace"
-              And user navigates to Workspaces section
-             Then user can see on dropdown with Empty Directory selected by default
-
-
-        @regression, @manual
-        Scenario Outline: Show VolumeClaimTemplate options
-            Given pipeline "pipeline-no-workspace" with at least one workspace and no previous Pipeline Runs
-             When user selects "Start" option from kebab menu for pipeline "pipeline-no-workspace"
+        @regression, @manual @odc-3991
+        Scenario: Show VolumeClaimTemplate options
+            Given pipeline "pipevc-no-workspace" with at least one workspace and no previous Pipeline Runs
+             When user selects "Start" option from kebab menu for pipeline "pipevc-no-workspace"
               And user navigates to Workspaces section
               And user clicks Show VolumeClaimTemplate options
              Then user can see Storage Class
@@ -286,11 +278,12 @@ Feature: Pipeline Runs
               And user can see Volume Mode
 
 
-        @regression @to-do
-        Scenario Outline: Create PVC workspace in Start pipeline modal
+        @regression @odc-3991
+        Scenario: Create PVC workspace in Start pipeline modal
             Given pipeline "pipeline-no-workspace" with at least one workspace and no previous Pipeline Runs
              When user selects "Start" option from kebab menu for pipeline "pipeline-no-workspace"
               And user navigates to Workspaces section
+              And user selects "VolumeClaimTemplate" option from workspace dropdown
               And user clicks Show VolumeClaimTemplate options
               And user clicks on Start
              Then user will be redirected to Pipeline Run Details page

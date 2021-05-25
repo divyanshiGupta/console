@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import { formatDuration } from '@console/internal/components/utils/datetime';
+import { formatPrometheusDuration } from '@console/internal/components/utils/datetime';
 import {
   ContainerStatus,
   k8sUpdate,
@@ -29,7 +29,11 @@ import {
   TektonParam,
 } from '../types';
 import { getLatestRun, runStatus } from './pipeline-augment';
-import { pipelineRunFilterReducer, pipelineRunStatus } from './pipeline-filter-reducer';
+import {
+  pipelineRunFilterReducer,
+  pipelineRunStatus,
+  SucceedConditionReason,
+} from './pipeline-filter-reducer';
 import {
   PipelineRunModel,
   TaskRunModel,
@@ -116,7 +120,13 @@ export const appendPipelineRunStatus = (pipeline, pipelineRun, isFinallyTasks = 
     if (!pipelineRun.status) {
       return task;
     }
-    if (pipelineRun.status && !pipelineRun.status.taskRuns) {
+    if (!pipelineRun?.status?.taskRuns) {
+      if (pipelineRun.spec.status === SucceedConditionReason.PipelineRunCancelled) {
+        return _.merge(task, { status: { reason: runStatus.Cancelled } });
+      }
+      if (pipelineRun.spec.status === SucceedConditionReason.PipelineRunPending) {
+        return _.merge(task, { status: { reason: runStatus.Idle } });
+      }
       return _.merge(task, { status: { reason: runStatus.Failed } });
     }
     const mTask = _.merge(task, {
@@ -127,7 +137,7 @@ export const appendPipelineRunStatus = (pipeline, pipelineRun, isFinallyTasks = 
       const date =
         new Date(mTask.status.completionTime).getTime() -
         new Date(mTask.status.startTime).getTime();
-      mTask.status.duration = formatDuration(date);
+      mTask.status.duration = formatPrometheusDuration(date);
     }
     // append task status
     if (!mTask.status) {

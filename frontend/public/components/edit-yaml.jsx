@@ -6,7 +6,6 @@ import { connect } from 'react-redux';
 import { ActionGroup, Alert, Button, Split, SplitItem } from '@patternfly/react-core';
 import { DownloadIcon, InfoCircleIcon } from '@patternfly/react-icons';
 import { withTranslation } from 'react-i18next';
-
 import {
   FLAGS,
   ALL_NAMESPACES_KEY,
@@ -16,12 +15,13 @@ import {
 } from '@console/shared';
 import YAMLEditor from '@console/shared/src/components/editor/YAMLEditor';
 import YAMLEditorSidebar from '@console/shared/src/components/editor/YAMLEditorSidebar';
-import { downloadYaml, fold } from '@console/shared/src/components/editor/yaml-editor-utils';
-import { isYAMLTemplate, withExtensions } from '@console/plugin-sdk';
-
+import { fold } from '@console/shared/src/components/editor/yaml-editor-utils';
+import { downloadYaml } from '@console/shared/src/components/editor/yaml-download-utils';
+import { isYAMLTemplate } from '@console/dynamic-plugin-sdk';
+import { useResolvedExtensions } from '@console/dynamic-plugin-sdk/src/api/useResolvedExtensions';
 import { connectToFlags } from '../reducers/features';
 import { errorModal, managedResourceSaveModal } from './modals';
-import { Firehose, checkAccess, history, Loading, resourceObjPath } from './utils';
+import { Firehose, LoadingBox, checkAccess, history, Loading, resourceObjPath } from './utils';
 import {
   referenceForModel,
   k8sCreate,
@@ -50,13 +50,27 @@ const stateToProps = ({ k8s, UI }) => ({
   models: k8s.getIn(['RESOURCES', 'models']),
 });
 
+const WithYamlTemplates = (Component) =>
+  function Comp(props) {
+    const kind = props?.obj?.kind;
+    const [templateExtensions, resolvedTemplates] = useResolvedExtensions(
+      React.useCallback((e) => isYAMLTemplate(e) && e.properties.model.kind === kind, [kind]),
+    );
+
+    return !resolvedTemplates ? (
+      <LoadingBox />
+    ) : (
+      <Component templateExtensions={templateExtensions} {...props} />
+    );
+  };
+
 /**
  * This component loads the entire Monaco editor library with it.
  * Consider using `AsyncComponent` to dynamically load this component when needed.
  */
 /** @augments {React.Component<{obj?: any, create: boolean, kind: string, redirectURL?: string, resourceObjPath?: (obj: K8sResourceKind, objRef: string) => string}, onChange?: (yaml: string) => void>} */
 export const EditYAML_ = connect(stateToProps)(
-  withExtensions({ templateExtensions: isYAMLTemplate })(
+  WithYamlTemplates(
     withPostFormSubmissionCallback(
       class EditYAML extends React.Component {
         constructor(props) {
@@ -202,7 +216,7 @@ export const EditYAML_ = connect(stateToProps)(
                 yaml = safeDump(obj);
                 this.checkEditAccess(obj);
               } catch (e) {
-                yaml = t('yaml~Error getting YAML: {{e}}', { e });
+                yaml = t('public~Error getting YAML: {{e}}', { e });
               }
             }
           }
@@ -251,7 +265,7 @@ export const EditYAML_ = connect(stateToProps)(
                   // TODO: (ggreer). show message on new page. maybe delete old obj?
                   return;
                 }
-                const success = t('yaml~{{newName}} has been updated to version {{version}}', {
+                const success = t('public~{{newName}} has been updated to version {{version}}', {
                   newName,
                   version: o.metadata.resourceVersion,
                 });
@@ -277,17 +291,17 @@ export const EditYAML_ = connect(stateToProps)(
           try {
             obj = safeLoad(this.getEditor().getValue());
           } catch (e) {
-            this.handleError(t('yaml~Error parsing YAML: {{e}}', { e }));
+            this.handleError(t('public~Error parsing YAML: {{e}}', { e }));
             return;
           }
 
           if (!obj.apiVersion) {
-            this.handleError(t('yaml~No "apiVersion" field found in YAML.'));
+            this.handleError(t('public~No "apiVersion" field found in YAML.'));
             return;
           }
 
           if (!obj.kind) {
-            this.handleError(t('yaml~No "kind" field found in YAML.'));
+            this.handleError(t('public~No "kind" field found in YAML.'));
             return;
           }
 
@@ -295,7 +309,7 @@ export const EditYAML_ = connect(stateToProps)(
           if (!model) {
             this.handleError(
               t(
-                'yaml~The server doesn\'t have a resource type "kind: {{kind}}, apiVersion: {{apiVersion}}".',
+                'public~The server doesn\'t have a resource type "kind: {{kind}}, apiVersion: {{apiVersion}}".',
                 { kind: obj.kind, apiVersion: obj.apiVersion },
               ),
             );
@@ -303,7 +317,7 @@ export const EditYAML_ = connect(stateToProps)(
           }
 
           if (!obj.metadata) {
-            this.handleError(t('yaml~No "metadata" field found in YAML.'));
+            this.handleError(t('public~No "metadata" field found in YAML.'));
             return;
           }
 
@@ -314,7 +328,7 @@ export const EditYAML_ = connect(stateToProps)(
           // If this is a namespaced resource, default to the active namespace when none is specified in the YAML.
           if (!obj.metadata.namespace && model.namespaced) {
             if (this.props.activeNamespace === ALL_NAMESPACES_KEY) {
-              this.handleError(t('yaml~No "metadata.namespace" field found in YAML.'));
+              this.handleError(t('public~No "metadata.namespace" field found in YAML.'));
               return;
             }
             obj.metadata.namespace = this.props.activeNamespace;
@@ -328,7 +342,7 @@ export const EditYAML_ = connect(stateToProps)(
             if (name !== newName) {
               this.handleError(
                 t(
-                  'yaml~Cannot change resource name (original: "{{name}}", updated: "{{newName}}").',
+                  'public~Cannot change resource name (original: "{{name}}", updated: "{{newName}}").',
                   { name, newName },
                 ),
               );
@@ -337,7 +351,7 @@ export const EditYAML_ = connect(stateToProps)(
             if (namespace !== newNamespace) {
               this.handleError(
                 t(
-                  'yaml~Cannot change resource namespace (original: "{{namespace}}", updated: "{{newNamespace}}").',
+                  'public~Cannot change resource namespace (original: "{{namespace}}", updated: "{{newNamespace}}").',
                   { namespace, newNamespace },
                 ),
               );
@@ -346,7 +360,7 @@ export const EditYAML_ = connect(stateToProps)(
             if (this.props.obj.kind !== obj.kind) {
               this.handleError(
                 t(
-                  'yaml~Cannot change resource kind (original: "{{original}}", updated: "{{updated}}").',
+                  'public~Cannot change resource kind (original: "{{original}}", updated: "{{updated}}").',
                   { original: this.props.obj.kind, updated: obj.kind },
                 ),
               );
@@ -358,7 +372,7 @@ export const EditYAML_ = connect(stateToProps)(
             if (apiGroup !== newAPIGroup) {
               this.handleError(
                 t(
-                  'yaml~Cannot change API group (original: "{{apiGroup}}", updated: "{{newAPIGroup}}").',
+                  'public~Cannot change API group (original: "{{apiGroup}}", updated: "{{newAPIGroup}}").',
                   { apiGroup, newAPIGroup },
                 ),
               );
@@ -398,10 +412,10 @@ export const EditYAML_ = connect(stateToProps)(
             return sampleObj;
           } catch (error) {
             errorModal({
-              title: t('yaml~Failed to parse YAML sample'),
+              title: t('public~Failed to parse YAML sample'),
               error: (
                 <div className="co-pre-line">
-                  {error.message || error.name || t('yaml~An error occurred.')}
+                  {error.message || error.name || t('public~An error occurred.')}
                 </div>
               ),
             });
@@ -462,7 +476,7 @@ export const EditYAML_ = connect(stateToProps)(
             !showSidebar && hasSidebarContent ? (
               <Button type="button" variant="link" isInline onClick={this.toggleSidebar}>
                 <InfoCircleIcon className="co-icon-space-r co-p-has-sidebar__sidebar-link-icon" />
-                {t('yaml~View sidebar')}
+                {t('public~View sidebar')}
               </Button>
             ) : null;
 
@@ -470,7 +484,7 @@ export const EditYAML_ = connect(stateToProps)(
             <div className="co-file-dropzone co-file-dropzone__flex">
               {canDrop && (
                 <div className={klass}>
-                  <p className="co-file-dropzone__drop-text">{t('yaml~Drop file here')}</p>
+                  <p className="co-file-dropzone__drop-text">{t('public~Drop file here')}</p>
                 </div>
               )}
 
@@ -484,7 +498,7 @@ export const EditYAML_ = connect(stateToProps)(
                   </Split>
                   <p className="help-block">
                     {t(
-                      'yaml~Create by manually entering YAML or JSON definitions, or by dragging and dropping a file into the editor.',
+                      'public~Create by manually entering YAML or JSON definitions, or by dragging and dropping a file into the editor.',
                     )}
                   </p>
                 </div>
@@ -513,7 +527,7 @@ export const EditYAML_ = connect(stateToProps)(
                             isInline
                             className="co-alert co-alert--scrollable"
                             variant="danger"
-                            title={t('yaml~An error occurred')}
+                            title={t('public~An error occurred')}
                           >
                             <div className="co-pre-line">{error}</div>
                           </Alert>
@@ -526,9 +540,9 @@ export const EditYAML_ = connect(stateToProps)(
                             isInline
                             className="co-alert"
                             variant="info"
-                            title={t('yaml~This object has been updated.')}
+                            title={t('public~This object has been updated.')}
                           >
-                            {t('yaml~Click reload to see the new version.')}
+                            {t('public~Click reload to see the new version.')}
                           </Alert>
                         )}
                         <ActionGroup className="pf-c-form__group--no-top-margin">
@@ -540,7 +554,7 @@ export const EditYAML_ = connect(stateToProps)(
                               data-test="save-changes"
                               onClick={() => this.save()}
                             >
-                              {t('yaml~Create')}
+                              {t('public~Create')}
                             </Button>
                           )}
                           {!create && !readOnly && (
@@ -551,7 +565,7 @@ export const EditYAML_ = connect(stateToProps)(
                               data-test="save-changes"
                               onClick={() => this.save()}
                             >
-                              {t('yaml~Save')}
+                              {t('public~Save')}
                             </Button>
                           )}
                           {!create && !genericYAML && (
@@ -562,7 +576,7 @@ export const EditYAML_ = connect(stateToProps)(
                               data-test="reload-object"
                               onClick={() => this.reload()}
                             >
-                              {t('yaml~Reload')}
+                              {t('public~Reload')}
                             </Button>
                           )}
                           <Button
@@ -571,7 +585,7 @@ export const EditYAML_ = connect(stateToProps)(
                             data-test="cancel"
                             onClick={() => this.onCancel()}
                           >
-                            {t('yaml~Cancel')}
+                            {t('public~Cancel')}
                           </Button>
                           {download && (
                             <Button
@@ -580,7 +594,7 @@ export const EditYAML_ = connect(stateToProps)(
                               className="pf-c-button--align-right hidden-sm hidden-xs"
                               onClick={() => this.download()}
                             >
-                              <DownloadIcon /> {t('yaml~Download')}
+                              <DownloadIcon /> {t('public~Download')}
                             </Button>
                           )}
                         </ActionGroup>

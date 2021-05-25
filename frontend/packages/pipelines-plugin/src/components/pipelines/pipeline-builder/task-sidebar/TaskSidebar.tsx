@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { FormikErrors, useField } from 'formik';
-import { useTranslation } from 'react-i18next';
-import { CloseButton } from '@console/internal/components/utils';
+import { Trans, useTranslation } from 'react-i18next';
+import { Stack, StackItem } from '@patternfly/react-core';
 import {
   PipelineTask,
   PipelineTaskParam,
@@ -19,6 +19,7 @@ import TaskSidebarResource from './TaskSidebarResource';
 import TaskSidebarName from './TaskSidebarName';
 import TaskSidebarWorkspace from './TaskSidebarWorkspace';
 import TaskSidebarHeader from './TaskSidebarHeader';
+import TaskSidebarWhenExpression from './TaskSidebarWhenExpression';
 
 import './TaskSidebar.scss';
 
@@ -40,14 +41,8 @@ function safeIndex<T>(list: T[], comparatorFunc: (v: T) => boolean): number {
 
 const TaskSidebar: React.FC<TaskSidebarProps> = (props) => {
   const { t } = useTranslation();
-  const {
-    onRemoveTask,
-    onRenameTask,
-    resourceList,
-    workspaceList,
-    selectedData: { isFinallyTask, taskIndex, resource: taskResource },
-    onClose,
-  } = props;
+  const { onRemoveTask, onRenameTask, resourceList, workspaceList, selectedData, onClose } = props;
+  const { isFinallyTask, taskIndex, resource: taskResource } = selectedData;
   const taskType: TaskType = isFinallyTask ? 'finallyTasks' : 'tasks';
   const formikTaskReference = `formData.${taskType}.${taskIndex}`;
   const [{ value: thisTask }] = useField<PipelineTask>(formikTaskReference);
@@ -74,16 +69,15 @@ const TaskSidebar: React.FC<TaskSidebarProps> = (props) => {
   };
 
   return (
-    <div className="odc-task-sidebar">
-      <div className="co-sidebar-dismiss clearfix">
-        <CloseButton onClick={onClose} />
-      </div>
-      <TaskSidebarHeader
-        taskResource={taskResource}
-        removeThisTask={() => onRemoveTask(thisTask.name)}
-      />
-
-      <div className="odc-task-sidebar__content">
+    <Stack className="opp-task-sidebar">
+      <StackItem className="opp-task-sidebar__header">
+        <TaskSidebarHeader
+          onClose={onClose}
+          taskResource={taskResource}
+          removeThisTask={() => onRemoveTask(thisTask.name)}
+        />
+      </StackItem>
+      <StackItem className="opp-task-sidebar__content pf-c-form">
         <TaskSidebarName
           initialName={thisTask.name}
           taskName={taskResource.metadata.name}
@@ -93,26 +87,31 @@ const TaskSidebar: React.FC<TaskSidebarProps> = (props) => {
         />
 
         {params.length > 0 && (
-          <>
+          <div>
             <h2>{t('pipelines-plugin~Parameters')}</h2>
+            <p className="co-help-text">
+              <Trans ns="pipelines-plugin">
+                Use this format when referencing variables in this form: <code>$(</code>
+              </Trans>
+            </p>
             {params.map((param) => {
               const taskParams: PipelineTaskParam[] = thisTask.params || [];
               const paramIdx = safeIndex(taskParams, (thisParam) => thisParam.name === param.name);
               return (
-                <div key={param.name} className="odc-task-sidebar__param">
+                <div key={param.name} className="opp-task-sidebar__param">
                   <TaskSidebarParam
                     hasParam={!!taskParams[paramIdx]}
                     name={`${formikTaskReference}.params.${paramIdx}`}
                     resourceParam={param}
+                    selectedData={selectedData}
                   />
                 </div>
               );
             })}
-          </>
+          </div>
         )}
-
         {workspaces.length > 0 && (
-          <>
+          <div>
             <h2>{t('pipelines-plugin~Workspaces')}</h2>
             {workspaces.map((workspace) => {
               const taskWorkspaces: TektonWorkspace[] = thisTask.workspaces || [];
@@ -121,7 +120,7 @@ const TaskSidebar: React.FC<TaskSidebarProps> = (props) => {
                 (thisWorkspace) => thisWorkspace.name === workspace.name,
               );
               return (
-                <div key={workspace.name} className="odc-task-sidebar__workspace">
+                <div key={workspace.name} className="opp-task-sidebar__workspace">
                   <TaskSidebarWorkspace
                     availableWorkspaces={workspaceList}
                     hasWorkspace={!!taskWorkspaces[workspaceIdx]}
@@ -131,23 +130,30 @@ const TaskSidebar: React.FC<TaskSidebarProps> = (props) => {
                 </div>
               );
             })}
-          </>
+          </div>
         )}
 
         {inputResources.length > 0 && (
-          <>
+          <div>
             <h2>{t('pipelines-plugin~Input resources')}</h2>
             {inputResources.map(renderResource('inputs'))}
-          </>
+          </div>
         )}
         {outputResources.length > 0 && (
-          <>
+          <div>
             <h2>{t('pipelines-plugin~Output resources')}</h2>
             {outputResources.map(renderResource('outputs'))}
-          </>
+          </div>
         )}
-      </div>
-    </div>
+        <div className="opp-task-sidebar__when-expressions">
+          <TaskSidebarWhenExpression
+            hasParam={false}
+            name={`${formikTaskReference}.when`}
+            selectedData={selectedData}
+          />
+        </div>
+      </StackItem>
+    </Stack>
   );
 };
 

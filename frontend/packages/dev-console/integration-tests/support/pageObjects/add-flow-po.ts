@@ -7,6 +7,8 @@ export const gitPO = {
   builderImageCard: '.odc-selector-card',
   nodeName: '[data-test-id="application-form-app-name"]',
   appName: '[id$=application-name-field]',
+  createNewApp: '[data-test-id="dropdown-menu"]',
+  newAppName: '[data-test-id="application-form-app-input"]',
   create: '[data-test-id="submit-button"]',
   cancel: '[data-test-id="reset-button"]',
   gitSection: {
@@ -47,8 +49,8 @@ export const gitPO = {
       buildTriggerImage: 'input#form-checkbox-build-triggers-image-field',
       buildTriggerConfigField: 'input#form-checkbox-build-triggers-config-field',
       // Add Environment Value
-      envName: 'input[placeholder="name"]',
-      envValue: 'input[placeholder="value"]',
+      envName: '[data-test=pairs-list-name]',
+      envValue: '[data-test=pairs-list-value]',
       // Count for Rows in Environment Variables section
       envRows: 'div.row.pairs-list__row',
       deleteRowButton: 'button[data-test="delete-button"]',
@@ -56,8 +58,8 @@ export const gitPO = {
     deployment: {
       deploymentTriggerImage: 'input#form-checkbox-deployment-triggers-image-field',
       deploymentImageConfig: 'input#form-checkbox-deployment-triggers-config-field',
-      envName: 'input[placeholder="name"]',
-      envValue: 'input[placeholder="value"]',
+      envName: '[data-test=pairs-list-name]',
+      envValue: '[data-test=pairs-list-value]',
       // Count for Rows in Environment Variables section
       envRows: 'div.row.pairs-list__row',
       deleteRowButton: 'button[data-test="delete-button"]',
@@ -84,6 +86,7 @@ export const gitPO = {
 export const catalogPO = {
   search: 'input[placeholder="Filter by keyword..."]',
   card: 'a.pf-c-card',
+  cardBadge: 'span.pf-c-badge',
   groupBy: '[data-test-id="dropdown-button"]',
   aToz: '[data-test-dropdown-menu="desc"]',
   zToA: '[data-test-dropdown-menu="asc"]',
@@ -93,6 +96,7 @@ export const catalogPO = {
   cardList: '[role="rowgroup"]',
   cardHeader: '.pf-c-badge.pf-m-read',
   groupByMenu: 'pf-c-dropdown__menu',
+  catalogTypeLink: 'li.vertical-tabs-pf-tab.shown.text-capitalize.co-catalog-tab__empty',
   catalogTypes: {
     operatorBacked: '[data-test="kind-cluster-service-version"]',
     helmCharts: 'a[href="/?catalogType=HelmChart"]',
@@ -100,6 +104,7 @@ export const catalogPO = {
     template: 'a[href="/?catalogType=Template"]',
     serviceClass: '[data-test="kind-cluster-service-class"]',
     managedServices: '[data-test="kind-managed-service"]',
+    eventSources: 'a[href="/?catalogType=EventSource"]',
   },
   cards: {
     mariaDBTemplate: 'a[data-test="Template-MariaDB"] .catalog-tile-pf-title',
@@ -110,6 +115,8 @@ export const catalogPO = {
     apacheHTTPServer: 'a[data-test="Template-Apache HTTP Server"] .catalog-tile-pf-title',
     nginxHTTPServer:
       'a[data-test="Template-Nginx HTTP server and a reverse proxy"] .catalog-tile-pf-title',
+    knativeKafka: '[data-test="OperatorBackedService-Knative Kafka"]',
+    helmNodejs: '[data-test="HelmChart-Nodejs Ex K v0.2.1"]',
   },
   sidePane: {
     dialog: '[role="dialog"]',
@@ -139,6 +146,20 @@ export const catalogPO = {
     formView: '#form-radiobutton-editorType-form-field',
     cancel: '[data-test-id="reset-button"]',
     chartVersion: '#form-dropdown-chartVersion-field',
+    replicaCount: '#root_replicaCount',
+    ingressLink: '#root_ingress_accordion-toggle',
+    ingress: {
+      enabled: '#root_ingress_enabled',
+      hostsLink: '#root_ingress_hosts_accordion-toggle',
+      tlsLink: '#root_ingress_tls_accordion-toggle',
+      hostDetails: {
+        hostName: '#root_ingress_hosts_0_host',
+        removeHost: '[id$="remove-btn"]',
+      },
+      pathsLink: '#root_ingress_hosts_0_paths_accordion-toggle',
+      AddPathButton: '#root_ingress_hosts_0_paths_add-btn',
+      AddHostButton: '#root_ingress_hosts_add-btn',
+    },
   },
   s2I: {
     gitRepoUrl: '[data-test-id="git-form-input-url"]',
@@ -158,9 +179,11 @@ export const catalogPO = {
 };
 
 export const containerImagePO = {
+  form: '[data-test-id="deploy-image-form"]',
   imageSection: {
     externalRegistryImageCheckBox: '#form-radiobutton-registry-external-field',
     internalRegistryImageCheckBox: '#form-radiobutton-registry-internal-field',
+    runTimeIconDropdown: '.odc-icon-dropdown button',
     externalRegistry: {
       allowImageFromInsecureRegistry: '#form-checkbox-allowInsecureRegistry-field',
       imageName: '#form-input-searchTerm-field',
@@ -172,6 +195,7 @@ export const containerImagePO = {
       tag: '#form-dropdown-imageStream-tag-field',
     },
   },
+  appName: '#form-dropdown-application-name-field',
 };
 
 export const eventSourcePO = {
@@ -231,4 +255,18 @@ export const channelPO = {
   channelType: '[data-test-id="dropdown-button"]',
   channelName: '[data-test-id="channel-name"]',
   appName: '#form-dropdown-application-name-field',
+};
+
+export const yamlPO = {
+  yamlEditor: '.yaml-editor',
+};
+
+export const uploadJarFilePO = {
+  jar: {
+    browse: '#upload-jar-field-browse-button',
+    jarFile: '#upload-jar-field-filename',
+    optionalJavaCommands: '[data-test-id="upload-jar-form-java-args"]',
+    runTimeIcon: '.odc-icon-dropdown',
+    builderImageVersion: '#form-dropdown-image-tag-field',
+  },
 };

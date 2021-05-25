@@ -1,7 +1,8 @@
 import * as React from 'react';
+import * as _ from 'lodash';
 import { useFormikContext, FormikValues, useField } from 'formik';
 import { useTranslation } from 'react-i18next';
-import { TFunction } from 'i18next';
+import i18next from 'i18next';
 import { SecretModel, ConfigMapModel } from '@console/internal/models';
 import { DropdownField } from '@console/shared';
 import FormSection from '@console/dev-console/src/components/import/section/FormSection';
@@ -13,16 +14,16 @@ import MultipleResourceKeySelector from './MultipleResourceKeySelector';
 import { PipelineModalFormWorkspace } from './types';
 import './PipelineWorkspacesSection.scss';
 
-const getVolumeTypeFields = (volumeType: VolumeTypes, index: number, t: TFunction) => {
+const getVolumeTypeFields = (volumeType: VolumeTypes, index: number) => {
   switch (volumeType) {
     case VolumeTypes.Secret: {
       return (
         <MultipleResourceKeySelector
           resourceNameField={`workspaces.${index}.data.secret.secretName`}
           resourceKeysField={`workspaces.${index}.data.secret.items`}
-          label={t('pipelines-plugin~Secret')}
+          label={i18next.t('pipelines-plugin~Secret')}
           resourceModel={SecretModel}
-          addString={t('pipelines-plugin~Add item')}
+          addString={i18next.t('pipelines-plugin~Add item')}
           required
         />
       );
@@ -32,9 +33,9 @@ const getVolumeTypeFields = (volumeType: VolumeTypes, index: number, t: TFunctio
         <MultipleResourceKeySelector
           resourceNameField={`workspaces.${index}.data.configMap.name`}
           resourceKeysField={`workspaces.${index}.data.configMap.items`}
-          label={t('pipelines-plugin~Config Map')}
+          label={i18next.t('pipelines-plugin~Config Map')}
           resourceModel={ConfigMapModel}
-          addString={t('pipelines-plugin~Add item')}
+          addString={i18next.t('pipelines-plugin~Add item')}
           required
         />
       );
@@ -45,7 +46,9 @@ const getVolumeTypeFields = (volumeType: VolumeTypes, index: number, t: TFunctio
           <Alert
             isInline
             variant="info"
-            title={t("pipelines-plugin~Empty Directory doesn't support shared data between tasks.")}
+            title={i18next.t(
+              "pipelines-plugin~Empty Directory doesn't support shared data between tasks.",
+            )}
           />
         </div>
       );
@@ -73,6 +76,7 @@ const PipelineWorkspacesSection: React.FC = () => {
   const [{ value: workspaces }] = useField<PipelineModalFormWorkspace[]>('workspaces');
 
   const volumeTypeOptions: { [type in VolumeTypes]: string } = {
+    [VolumeTypes.NoWorkspace]: t('pipelines-plugin~No workspace'),
     [VolumeTypes.EmptyDirectory]: t('pipelines-plugin~Empty Directory'),
     [VolumeTypes.ConfigMap]: t('pipelines-plugin~Config Map'),
     [VolumeTypes.Secret]: t('pipelines-plugin~Secret'),
@@ -83,26 +87,32 @@ const PipelineWorkspacesSection: React.FC = () => {
   return (
     workspaces.length > 0 && (
       <FormSection title={t('pipelines-plugin~Workspaces')} fullWidth>
-        {workspaces.map((workspace, index) => (
-          <div className="form-group" key={workspace.name}>
-            <DropdownField
-              name={`workspaces.${index}.type`}
-              label={workspace.name}
-              items={volumeTypeOptions}
-              onChange={(type) =>
-                setFieldValue(
-                  `workspaces.${index}.data`,
-                  type === VolumeTypes.EmptyDirectory ? { emptyDir: {} } : {},
-                  // Validation is automatically done by DropdownField useFormikValidationFix
-                  false,
-                )
-              }
-              fullWidth
-              required={!workspace.optional}
-            />
-            {getVolumeTypeFields(workspace.type, index, t)}
-          </div>
-        ))}
+        {workspaces.map((workspace, index) => {
+          return (
+            <div className="form-group" key={workspace.name}>
+              <DropdownField
+                name={`workspaces.${index}.type`}
+                label={workspace.name}
+                items={
+                  workspace.optional
+                    ? volumeTypeOptions
+                    : _.omit(volumeTypeOptions, VolumeTypes.NoWorkspace)
+                }
+                onChange={(type) =>
+                  setFieldValue(
+                    `workspaces.${index}.data`,
+                    type === VolumeTypes.EmptyDirectory ? { emptyDir: {} } : {},
+                    // Validation is automatically done by DropdownField useFormikValidationFix
+                    false,
+                  )
+                }
+                fullWidth
+                required={!workspace.optional}
+              />
+              {getVolumeTypeFields(workspace.type, index)}
+            </div>
+          );
+        })}
       </FormSection>
     )
   );

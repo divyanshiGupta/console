@@ -12,8 +12,10 @@ export default ({ vmName }) =>
       cy.byLegacyTestID('wizard-next')
         .as('nextButton')
         .click();
-      cy.byTestID('SupportModal').within(() => {
-        cy.get('[id=confirm-action]').click();
+      cy.get('body').then(($body) => {
+        if ($body.find('[data-test-id="modal-title"]').length) {
+          cy.get('[id=confirm-action]').click();
+        }
       });
       cy.get('[id=image-source-type-dropdown]').click();
       cy.contains('Import via Registry (creates PVC)').click();
@@ -64,8 +66,8 @@ export default ({ vmName }) =>
     });
 
     it('checking if ssh  helper modal exist', () => {
-      cy.get('.SSHPopover-button').click();
-      cy.byTestID('SSHPopover').should('be.visible');
+      cy.byLegacyTestID('ssh-popover-button').click();
+      cy.byTestID('ssh-popover').should('be.visible');
     });
 
     it('checking if expose ssh service is checked by default', () => {

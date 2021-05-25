@@ -106,6 +106,11 @@ export const pipelineRunDetailsPage = {
       }
     }
   },
+  verifyWorkspacesSection: () => {
+    cy.get(pipelineRunDetailsPO.details.workspacesSection)
+      .scrollIntoView()
+      .should('be.visible');
+  },
 };
 
 export const pipelineRunsPage = {
@@ -126,7 +131,9 @@ export const pipelineRunsPage = {
   verifyPipelineRunsTableDisplay: () =>
     cy.get(pipelineRunsPO.pipelineRunsTable.table).should('be.visible'),
   filterByStatus: (status: string = 'Succeeded') => {
-    cy.byLegacyTestID('filter-dropdown-toggle').click();
+    cy.byLegacyTestID('filter-dropdown-toggle')
+      .find('button')
+      .click();
     switch (status) {
       case 'Succeeded': {
         cy.get('#Succeeded').click();

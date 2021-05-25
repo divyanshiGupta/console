@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
-import { TFunction } from 'i18next';
 import { FormikErrors } from 'formik';
+import i18n from 'i18next';
 import { apiVersionForModel } from '@console/internal/module/k8s';
 import { getRandomChars } from '@console/shared';
 import { ClusterTaskModel, PipelineModel, TaskModel } from '../../../models';
@@ -60,7 +60,6 @@ export const getTopLevelErrorMessage: GetErrorMessage = (errors) => (taskIndex) 
 export const findTask = (
   resourceTasks: PipelineBuilderTaskResources,
   task: PipelineTask,
-  t: TFunction,
 ): TaskKind => {
   if (task?.taskRef) {
     if (
@@ -87,7 +86,7 @@ export const findTask = (
       apiVersion: apiVersionForModel(TaskModel),
       kind: 'EmbeddedTask',
       metadata: {
-        name: t('pipelines-plugin~Embedded Task'),
+        name: i18n.t('pipelines-plugin~Embedded Task'),
       },
       spec: task.taskSpec,
     };
@@ -99,10 +98,9 @@ export const findTask = (
 export const findTaskFromFormikData = (
   formikData: PipelineBuilderFormYamlValues,
   task: PipelineTask,
-  t: TFunction,
 ): TaskKind => {
   const { taskResources } = formikData;
-  return findTask(taskResources, task, t);
+  return findTask(taskResources, task);
 };
 
 /**

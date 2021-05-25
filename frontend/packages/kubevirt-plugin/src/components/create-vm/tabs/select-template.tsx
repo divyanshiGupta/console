@@ -2,7 +2,6 @@ import * as classnames from 'classnames';
 import * as fuzzy from 'fuzzysearch';
 import * as React from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-
 import { humanizeBinaryBytes, ResourceName, StatusBox } from '@console/internal/components/utils';
 import { ProjectModel } from '@console/internal/models';
 import { PersistentVolumeClaimKind, PodKind } from '@console/internal/module/k8s';
@@ -14,6 +13,7 @@ import {
   AlertVariant,
   Button,
   ButtonVariant,
+  Divider,
   InputGroup,
   SelectOption,
   SelectVariant,
@@ -30,12 +30,10 @@ import {
   ToolbarItem,
 } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
-
+import { createProjectModal } from '@console/internal/components/modals';
 import { BOOT_SOURCE_AVAILABLE, BOOT_SOURCE_REQUIRED } from '../../../constants';
 import { usePinnedTemplates } from '../../../hooks/use-pinned-templates';
-import { getWorkloadProfile } from '../../../selectors/vm';
 import {
-  getTemplateFlavorData,
   getTemplateOperatingSystems,
   getTemplateSizeRequirementInBytes,
 } from '../../../selectors/vm-template/advanced';
@@ -43,6 +41,7 @@ import {
   getTemplateName,
   getTemplateProvider,
   getTemplateProviderType,
+  isLabeledTemplate,
   templateProviders,
 } from '../../../selectors/vm-template/basic';
 import { getTemplateSourceStatus } from '../../../statuses/template/template-source-status';
@@ -77,7 +76,6 @@ export const TemplateTile: React.FC<TemplateTileProps> = ({
   const [template] = templateItem.variants;
 
   const osName = getTemplateOperatingSystems(templateItem.variants)?.[0]?.name;
-  const workloadProfile = getWorkloadProfile(template) || t('kubevirt-plugin~Not available');
   const provider = getTemplateProvider(t, template, true);
   const storage = getTemplateSizeRequirementInBytes(template, sourceStatus);
   const storageLable = storage
@@ -92,8 +90,10 @@ export const TemplateTile: React.FC<TemplateTileProps> = ({
       })}
       icon={<img src={getTemplateOSIcon(template)} alt="" />}
       badges={[
+        isLabeledTemplate(t, template) && (
+          <VMTemplateLabel template={template} className="kv-select-template__support-label" />
+        ),
         isPinned && <PinnedIcon />,
-        <VMTemplateLabel template={template} className="kv-select-template__support-label" />,
       ]}
       title={
         <Stack>
@@ -115,17 +115,6 @@ export const TemplateTile: React.FC<TemplateTileProps> = ({
             <StackItem>
               <b>{t('kubevirt-plugin~Project ')}</b>
               {template.metadata.namespace}
-            </StackItem>
-            <StackItem>
-              <b>{t('kubevirt-plugin~Type ')}</b>
-              {workloadProfile}
-            </StackItem>
-            <StackItem>
-              <b>{t('kubevirt-plugin~Flavor ')}</b>
-              {t(
-                'kubevirt-plugin~{{flavor}}: {{count}} CPU | {{memory}} Memory',
-                getTemplateFlavorData(template),
-              )}
             </StackItem>
             <StackItem>
               <b>{t('kubevirt-plugin~Storage ')}</b>
@@ -219,10 +208,18 @@ export const SelectTemplate: React.FC<SelectTemplateProps> = ({
             fuzzy(textFilterLowerCase, os.id.toLowerCase()),
         )
       : true;
-    const providerFilter =
-      filters.provider?.length > 0
-        ? filters.provider.includes(getTemplateProviderType(item.template))
-        : true;
+
+    const type = item?.template ? getTemplateProviderType(item.template) : undefined;
+    let providerFilter = true;
+    // checking if any template provider has clicked
+    if (filters.provider?.length > 0) {
+      if (type) {
+        providerFilter = filters.provider.includes(type);
+      }
+      if (templateProviders(t).length === filters.provider.length) {
+        providerFilter = true;
+      }
+    }
 
     let bootSourceFilter = true;
     if (filters.bootSource?.length > 0) {
@@ -237,6 +234,7 @@ export const SelectTemplate: React.FC<SelectTemplateProps> = ({
   });
 
   const canListNs = useFlag(FLAGS.CAN_LIST_NS);
+  const canCreateNs = useFlag(FLAGS.CAN_CREATE_PROJECT);
   const allProjects = t('kubevirt-plugin~All projects');
 
   return (
@@ -282,14 +280,38 @@ export const SelectTemplate: React.FC<SelectTemplateProps> = ({
                           selections={namespace}
                           className="kv-select-template__project"
                         >
-                          {(canListNs
-                            ? [allProjects, ...namespaces.sort()]
-                            : namespaces.sort()
-                          ).map((ns) => (
-                            <SelectOption key={ns} value={ns}>
-                              <ResourceName kind={ProjectModel.kind} name={ns} />
-                            </SelectOption>
-                          ))}
+                          <>
+                            {canCreateNs && (
+                              <>
+                                <Button
+                                  className="kv-select-template__create-project-btn"
+                                  variant="plain"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    createProjectModal({
+                                      blocking: true,
+                                      onSubmit: (newProject) => {
+                                        setNamespace(newProject.metadata.name);
+                                      },
+                                    });
+                                  }}
+                                >
+                                  {t('kubevirt-plugin~Create Project')}
+                                </Button>
+                                <Divider component="li" key={5} />
+                              </>
+                            )}
+                          </>
+                          <>
+                            {(canListNs
+                              ? [allProjects, ...namespaces.sort()]
+                              : namespaces.sort()
+                            ).map((ns) => (
+                              <SelectOption key={ns} value={ns}>
+                                <ResourceName kind={ProjectModel.kind} name={ns} />
+                              </SelectOption>
+                            ))}
+                          </>
                         </FormPFSelect>
                       </ToolbarItem>
                     </SplitItem>

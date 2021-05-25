@@ -10,7 +10,7 @@ import i18next from 'i18next';
 import * as classNames from 'classnames';
 import * as _ from 'lodash-es';
 import { Button, Popover } from '@patternfly/react-core';
-import { Status, TableColumnsType, useUserSettingsCompatibility } from '@console/shared';
+import { Status, TableColumnsType } from '@console/shared';
 import { ByteDataTypes } from '@console/shared/src/graph-helper/data-utils';
 import {
   withUserSettingsCompatibility,
@@ -68,6 +68,15 @@ import {
 import { VolumesTable } from './volumes-table';
 import { PodModel } from '../models';
 import { Conditions } from './conditions';
+
+// Key translations for oauth login templates
+// t('public~Log in to your account')
+// t('public~Log in')
+// t('public~Welcome to {{platformTitle}}')
+// t('public~Log in with {{providerName}}')
+// t('public~Login is required. Please try again.')
+// t('public~Could not check CSRF token. Please try again.')
+// t('public~Invalid login or password. Please try again.')
 
 // Only request metrics if the device's screen width is larger than the
 // breakpoint where metrics are visible.
@@ -313,13 +322,8 @@ const PodTableRow = connect<PodTableRowPropsFromState, null, PodTableRowProps>(p
     metrics,
     showNodes,
     showNamespaceOverride,
+    tableColumns,
   }: PodTableRowProps & PodTableRowPropsFromState) => {
-    const [tableColumns, , loaded] = useUserSettingsCompatibility(
-      COLUMN_MANAGEMENT_CONFIGMAP_KEY,
-      COLUMN_MANAGEMENT_LOCAL_STORAGE_KEY,
-      undefined,
-      true,
-    );
     const { name, namespace, creationTimestamp, labels } = pod.metadata;
     const { readyCount, totalContainers } = podReadiness(pod);
     const phase = podPhase(pod);
@@ -327,9 +331,8 @@ const PodTableRow = connect<PodTableRowPropsFromState, null, PodTableRowProps>(p
     const bytes: number = _.get(metrics, ['memory', namespace, name]);
     const cores: number = _.get(metrics, ['cpu', namespace, name]);
     const columns: Set<string> =
-      loaded && tableColumns?.[columnManagementID]?.length > 0
-        ? new Set(tableColumns[columnManagementID])
-        : getSelectedColumns(showNodes);
+      tableColumns?.length > 0 ? new Set(tableColumns) : getSelectedColumns(showNodes);
+    const { t } = useTranslation();
     return (
       <TableRow id={pod.metadata.uid} index={index} trKey={rowKey} style={style}>
         <TableData className={podColumnInfo.name.classes}>
@@ -387,7 +390,7 @@ const PodTableRow = connect<PodTableRowPropsFromState, null, PodTableRowProps>(p
           columns={columns}
           columnID={podColumnInfo.cpu.id}
         >
-          {cores ? `${formatCores(cores)} cores` : '-'}
+          {cores ? t('public~{{numCores}} cores', { numCores: formatCores(cores) }) : '-'}
         </TableData>
         <TableData
           className={podColumnInfo.created.classes}
@@ -772,7 +775,7 @@ export const PodExecLoader: React.FC<PodExecLoaderProps> = ({ obj, message }) =>
 );
 
 export const PodsDetailsPage: React.FC<PodDetailsPageProps> = (props) => {
-  // t('details-page~Terminal')
+  // t('public~Terminal')
   return (
     <DetailsPage
       {...props}
@@ -786,7 +789,7 @@ export const PodsDetailsPage: React.FC<PodDetailsPageProps> = (props) => {
         navFactory.events(ResourceEventStream),
         {
           href: 'terminal',
-          nameKey: 'details-page~Terminal',
+          nameKey: 'public~Terminal',
           component: PodExecLoader,
         },
       ]}
@@ -804,6 +807,7 @@ const getRow = (showNodes, showNamespaceOverride) => {
       style={rowArgs.style}
       showNodes={showNodes}
       showNamespaceOverride={showNamespaceOverride}
+      tableColumns={rowArgs.customData?.tableColumns}
     />
   );
 };
@@ -833,15 +837,16 @@ export const PodList: React.FC<PodListProps> = withUserSettingsCompatibility<
       aria-label={t('public~Pods')}
       Header={getHeader(showNodes)}
       Row={getRow(showNodes, showNamespaceOverride)}
+      customData={{ tableColumns: tableColumns?.[columnManagementID] }}
       virtualize
     />
   );
 });
 PodList.displayName = 'PodList';
 
-export const filters = [
+export const getFilters = () => [
   {
-    filterGroupName: 'Status',
+    filterGroupName: i18next.t('public~Status'),
     type: 'pod-status',
     reducer: podPhaseFilterReducer,
     items: [
@@ -889,6 +894,7 @@ export const PodsPage = connect<{}, PodPagePropsFromDispatch, PodPageProps>(
         ...listProps
       } = props;
       const { t } = useTranslation();
+
       /* eslint-disable react-hooks/exhaustive-deps */
       React.useEffect(() => {
         if (showMetrics) {
@@ -915,7 +921,7 @@ export const PodsPage = connect<{}, PodPagePropsFromDispatch, PodPageProps>(
           canCreate={canCreate}
           kind={kind}
           ListComponent={PodList}
-          rowFilters={filters}
+          rowFilters={getFilters()}
           namespace={namespace}
           customData={customData}
           columnLayout={{
@@ -984,6 +990,7 @@ type PodTableRowProps = {
   index: number;
   rowKey: string;
   style: object;
+  tableColumns: string[];
   showNodes?: boolean;
   showNamespaceOverride?: boolean;
 };

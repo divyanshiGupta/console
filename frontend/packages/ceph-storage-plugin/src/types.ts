@@ -157,6 +157,12 @@ export enum NetworkType {
   DEFAULT = 'DEFAULT',
   MULTUS = 'MULTUS',
 }
+
+export enum NADSelectorType {
+  CLUSTER = 'CLUSTER',
+  PUBLIC = 'PUBLIC',
+}
+
 export type KMSConfigMap = {
   KMS_PROVIDER: string;
   KMS_SERVICE_NAME: string;
@@ -194,6 +200,7 @@ export type StoragePoolKind = K8sResourceCommon & {
   spec: {
     compressionMode?: string;
     deviceClass?: string;
+    failureDomain?: string;
     replicated: {
       size: number;
     };

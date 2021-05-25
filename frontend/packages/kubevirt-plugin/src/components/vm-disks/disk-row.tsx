@@ -6,8 +6,9 @@ import {
   Kebab,
   KebabOption,
   LoadingInline,
+  ResourceLink,
 } from '@console/internal/components/utils';
-import { TemplateModel } from '@console/internal/models';
+import { TemplateModel, PersistentVolumeClaimModel } from '@console/internal/models';
 import { DASH, dimensifyRow, getDeletetionTimestamp } from '@console/shared';
 
 import { PENDING_RESTART_LABEL } from '../../constants';
@@ -15,6 +16,7 @@ import { CombinedDisk } from '../../k8s/wrapper/vm/combined-disk';
 import { VirtualMachineModel } from '../../models';
 import { isVM, isVMI } from '../../selectors/check-type';
 import { asVM, isVMRunningOrExpectedRunning } from '../../selectors/vm';
+import { VMIKind } from '../../types';
 import { VMLikeEntityKind } from '../../types/vmLike';
 import { validateDisk } from '../../utils/validations/vm/disk';
 import { deleteDiskModal } from '../modals/delete-disk-modal/delete-disk-modal';
@@ -80,10 +82,11 @@ const menuActionDelete = (
 const getActions = (
   disk: CombinedDisk,
   vmLikeEntity: VMLikeEntityKind,
+  vmi: VMIKind,
   opts: VMStorageRowActionOpts,
 ) => {
   const actions = [];
-  if (isVMI(vmLikeEntity) || isVMRunningOrExpectedRunning(asVM(vmLikeEntity))) {
+  if (isVMI(vmLikeEntity) || isVMRunningOrExpectedRunning(asVM(vmLikeEntity), vmi)) {
     return actions;
   }
 
@@ -106,7 +109,7 @@ export type VMDiskSimpleRowProps = {
 };
 
 export const DiskSimpleRow: React.FC<VMDiskSimpleRowProps> = ({
-  data: { name, source, size, diskInterface, storageClass, type },
+  data: { name, source, size, diskInterface, storageClass, type, disk },
   validation = {},
   columnClasses,
   actionsComponent,
@@ -118,6 +121,17 @@ export const DiskSimpleRow: React.FC<VMDiskSimpleRowProps> = ({
 
   const isSizeLoading = size === undefined;
   const isStorageClassLoading = size === undefined;
+  const pvcName = disk?.persistentVolumeClaimWrapper?.getName();
+  const pvcNamespace = disk?.persistentVolumeClaimWrapper?.getNamespace();
+  const pvcLink = pvcName && pvcNamespace && (
+    <ResourceLink
+      inline
+      kind={PersistentVolumeClaimModel.kind}
+      name={pvcName}
+      namespace={pvcNamespace}
+    />
+  );
+
   return (
     <TableRow id={name} index={index} trKey={name} style={style}>
       <TableData className={dimensify()}>
@@ -129,7 +143,7 @@ export const DiskSimpleRow: React.FC<VMDiskSimpleRowProps> = ({
         </ValidationCell>
       </TableData>
       <TableData className={dimensify()}>
-        <ValidationCell validation={validation.source}>{source || DASH}</ValidationCell>
+        <ValidationCell validation={validation.source}>{pvcLink || source || DASH}</ValidationCell>
       </TableData>
       <TableData className={dimensify()}>
         {isSizeLoading && <LoadingInline />}
@@ -162,6 +176,7 @@ export const DiskRow: RowFunction<StorageBundle, VMStorageRowCustomData> = ({
     isDisabled,
     withProgress,
     vmLikeEntity,
+    vmi,
     columnClasses,
     templateValidations,
     pendingChangesDisks,
@@ -179,7 +194,7 @@ export const DiskRow: RowFunction<StorageBundle, VMStorageRowCustomData> = ({
   const isPendingRestart = !!pendingChangesDisks?.has(restData.name);
   return (
     <DiskSimpleRow
-      data={restData}
+      data={{ disk, ...restData }}
       validation={
         diskValidations && {
           name: diskValidations.validations.name,
@@ -197,7 +212,7 @@ export const DiskRow: RowFunction<StorageBundle, VMStorageRowCustomData> = ({
       style={style}
       actionsComponent={
         <Kebab
-          options={getActions(disk, vmLikeEntity, {
+          options={getActions(disk, vmLikeEntity, vmi, {
             withProgress,
             templateValidations,
           })}
@@ -205,7 +220,7 @@ export const DiskRow: RowFunction<StorageBundle, VMStorageRowCustomData> = ({
             isDisabled ||
             isVMI(vmLikeEntity) ||
             !!getDeletetionTimestamp(vmLikeEntity) ||
-            isVMRunningOrExpectedRunning(asVM(vmLikeEntity))
+            isVMRunningOrExpectedRunning(asVM(vmLikeEntity), vmi)
           }
           id={`kebab-for-${disk.getName()}`}
         />

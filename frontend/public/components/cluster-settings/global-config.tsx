@@ -6,7 +6,14 @@ import { AlertVariant } from '@patternfly/react-core';
 import { useTranslation } from 'react-i18next';
 import { useResolvedExtensions } from '@console/dynamic-plugin-sdk/src/api/useResolvedExtensions';
 import { RootState } from '../../redux';
-import { K8sKind, k8sList, referenceForModel, getResourceDescription } from '../../module/k8s';
+import {
+  K8sKind,
+  k8sList,
+  referenceForModel,
+  getResourceDescription,
+  modelFor,
+  referenceForGroupVersionKind,
+} from '../../module/k8s';
 import { EmptyBox, ExpandableAlert, Kebab, LoadingBox, resourcePathFromModel } from '../utils';
 import { addIDPItems } from './oauth';
 import { TextFilter } from '../factory';
@@ -17,17 +24,19 @@ import {
   isClusterGlobalConfig,
 } from '@console/dynamic-plugin-sdk/src/extensions/cluster-settings';
 
+type ConfigDataType = { model: K8sKind; id: string; name: string; namespace: string };
+
 const stateToProps = (state: RootState) => ({
   configResources: state.k8s.getIn(['RESOURCES', 'configResources']),
 });
 
 export const breadcrumbsForGlobalConfig = (detailsPageKind: string, detailsPagePath: string) => [
   {
-    name: i18next.t('details-page~Global configuration'),
+    name: i18next.t('public~Global configuration'),
     path: '/settings/cluster/globalconfig',
   },
   {
-    name: i18next.t('details-page~{{kind}} details', { kind: detailsPageKind }),
+    name: i18next.t('public~{{kind}} details', { kind: detailsPageKind }),
     path: detailsPagePath,
   },
 ];
@@ -60,18 +69,17 @@ const GlobalConfigPage_: React.FC<GlobalConfigPageProps & GlobalConfigPageExtens
   const [textFilter, setTextFilter] = React.useState('');
   const { t } = useTranslation();
 
-  const oauthMenuItems = _.map(addIDPItems, (label: string, id: string) => ({
-    label: t('public~{{label}}', { label }),
-    href: `/settings/idp/${id}`,
-  }));
-
   React.useEffect(() => {
+    const oauthMenuItems = _.map(addIDPItems, (label: string, id: string) => ({
+      label: t('public~{{label}}', { label }),
+      href: `/settings/idp/${id}`,
+    }));
     const editYAMLMenuItem = (name: string, resourceLink: string) => ({
-      label: t('global-config~Edit {{name}} resource', { name }),
+      label: t('public~Edit {{name}} resource', { name }),
       href: `${resourceLink}/yaml`,
     });
     const viewAPIExplorerMenuItem = (name: string, apiExplorerLink: string) => ({
-      label: t('global-config~Explore {{name}} API', { name }),
+      label: t('public~Explore {{name}} API', { name }),
       href: apiExplorerLink,
     });
     let isSubscribed = true;
@@ -88,14 +96,19 @@ const GlobalConfigPage_: React.FC<GlobalConfigPageProps & GlobalConfigPageExtens
       }),
     ).then((responses) => {
       const flattenedResponses = _.flatten(responses);
-      const winnowedResponses = flattenedResponses.map((item) => ({
+      const winnowedResponses: ConfigDataType[] = flattenedResponses.map((item) => ({
         model: item.model,
         id: item.metadata.uid,
         name: item.metadata.name,
         namespace: item.metadata.namespace,
-        kind: item.kind,
       }));
-      const usableConfigs = globalConfigs.map((item) => item.properties);
+      const usableConfigs: ConfigDataType[] = globalConfigs.map(({ properties }) => {
+        const { group, version, kind } = properties.model;
+        return {
+          ...properties,
+          model: modelFor(referenceForGroupVersionKind(group)(version)(kind)),
+        };
+      });
       const allItems = [...winnowedResponses, ...usableConfigs]
         .map((item) => {
           const apiExplorerLink = `/api-resource/cluster/${referenceForModel(item.model)}`;
@@ -120,11 +133,11 @@ const GlobalConfigPage_: React.FC<GlobalConfigPageProps & GlobalConfigPageExtens
             path: '/monitoring/alertmanagerconfig',
             menuItems: [
               {
-                label: t('global-config~Create Receiver'),
+                label: t('public~Create Receiver'),
                 href: '/monitoring/alertmanagerconfig/receivers/~new',
               },
               {
-                label: t('global-config~Edit configuration YAML'),
+                label: t('public~Edit configuration YAML'),
                 href: `/monitoring/alertmanageryaml`,
               },
             ],
@@ -137,7 +150,7 @@ const GlobalConfigPage_: React.FC<GlobalConfigPageProps & GlobalConfigPageExtens
       }
     });
     return () => (isSubscribed = false);
-  }, [configResources, errors, globalConfigs, oauthMenuItems, t]);
+  }, [configResources, globalConfigs, t]);
   const visibleItems = items.filter(({ label, description = '' }) => {
     return (
       fuzzyCaseInsensitive(textFilter, label) ||
@@ -150,14 +163,12 @@ const GlobalConfigPage_: React.FC<GlobalConfigPageProps & GlobalConfigPageExtens
       {!loading && (
         <>
           <p className="co-help-text">
-            {t(
-              'global-config~Edit the following resources to manage the configuration of your cluster.',
-            )}
+            {t('public~Edit the following resources to manage the configuration of your cluster.')}
           </p>
           <div className="co-m-pane__filter-row">
             <TextFilter
               value={textFilter}
-              label={t('global-config~by name or description')}
+              label={t('public~by name or description')}
               onChange={(val) => setTextFilter(val)}
             />
           </div>
@@ -174,12 +185,12 @@ const GlobalConfigPage_: React.FC<GlobalConfigPageProps & GlobalConfigPageExtens
       {loading && <LoadingBox />}
       {!loading &&
         (_.isEmpty(visibleItems) ? (
-          <EmptyBox label={t('global-config~Configuration resources')} />
+          <EmptyBox label={t('public~Configuration resources')} />
         ) : (
           <div className="co-m-table-grid co-m-table-grid--bordered">
             <div className="row co-m-table-grid__head">
-              <div className="col-xs-10 col-sm-4">{t('global-config~Configuration resource')}</div>
-              <div className="hidden-xs col-sm-7">{t('global-config~Description')}</div>
+              <div className="col-xs-10 col-sm-4">{t('public~Configuration resource')}</div>
+              <div className="hidden-xs col-sm-7">{t('public~Description')}</div>
               <div />
             </div>
             <div className="co-m-table-grid__body">

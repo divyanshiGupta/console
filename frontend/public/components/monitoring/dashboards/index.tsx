@@ -31,18 +31,20 @@ import {
 import { ErrorBoundaryFallback } from '../../error';
 import { RootState } from '../../../redux';
 import { getPrometheusURL, PrometheusEndpoint } from '../../graphs/helpers';
-import { ExternalLink, history, LoadingInline, useSafeFetch } from '../../utils';
+import { history, LoadingInline, useSafeFetch } from '../../utils';
 import { formatPrometheusDuration, parsePrometheusDuration } from '../../utils/datetime';
 import IntervalDropdown from '../poll-interval-dropdown';
 import BarChart from './bar-chart';
 import Graph from './graph';
 import SingleStat from './single-stat';
 import Table from './table';
-import { MONITORING_DASHBOARDS_DEFAULT_TIMESPAN, Panel } from './types';
+import {
+  MONITORING_DASHBOARDS_DEFAULT_TIMESPAN,
+  MONITORING_DASHBOARDS_VARIABLE_ALL_OPTION_KEY,
+  Panel,
+} from './types';
 
 const NUM_SAMPLES = 30;
-
-const VARIABLE_ALL_OPTION_KEY = 'VARIABLE_ALL_OPTION_KEY';
 
 const evaluateTemplate = (
   template: string,
@@ -79,7 +81,7 @@ const evaluateTemplate = (
         return false;
       }
       const replacement =
-        v.value === VARIABLE_ALL_OPTION_KEY
+        v.value === MONITORING_DASHBOARDS_VARIABLE_ALL_OPTION_KEY
           ? // Build a regex that tests for all options. After escaping regex characters, we also
             // escape '\' characters so that they are seen as literal '\'s by the PromQL parser.
             `(${v.options.map((s) => _.escapeRegExp(s).replace(/\\/g, '\\\\')).join('|')})`
@@ -216,7 +218,7 @@ const SingleVariableDropdown: React.FC<SingleVariableDropdownProps> = ({ id, nam
     return null;
   }
 
-  const items = includeAll ? { [VARIABLE_ALL_OPTION_KEY]: 'All' } : {};
+  const items = includeAll ? { [MONITORING_DASHBOARDS_VARIABLE_ALL_OPTION_KEY]: 'All' } : {};
   _.each(options, (option) => {
     items[option] = option;
   });
@@ -376,7 +378,7 @@ const Card: React.FC<CardProps> = ({ panel }) => {
     UI.getIn(['monitoringDashboards', 'variables']),
   );
 
-  const formatLegendLabel = React.useCallback(
+  const formatSeriesTitle = React.useCallback(
     (labels, i) => {
       const legendFormat = panel.targets?.[i]?.legendFormat;
       const compiled = _.template(legendFormat, legendTemplateOptions);
@@ -401,7 +403,7 @@ const Card: React.FC<CardProps> = ({ panel }) => {
     );
   }
 
-  if (!['grafana-piechart-panel', 'graph', 'singlestat', 'table'].includes(panel.type)) {
+  if (!['gauge', 'grafana-piechart-panel', 'graph', 'singlestat', 'table'].includes(panel.type)) {
     return null;
   }
 
@@ -436,13 +438,14 @@ const Card: React.FC<CardProps> = ({ panel }) => {
               )}
               {panel.type === 'graph' && (
                 <Graph
-                  formatLegendLabel={panel.legend?.show ? formatLegendLabel : undefined}
+                  formatSeriesTitle={formatSeriesTitle}
                   isStack={panel.stack}
                   pollInterval={pollInterval}
                   queries={queries}
+                  showLegend={panel.legend?.show}
                 />
               )}
-              {panel.type === 'singlestat' && (
+              {(panel.type === 'singlestat' || panel.type === 'gauge') && (
                 <SingleStat panel={panel} pollInterval={pollInterval} query={queries[0]} />
               )}
               {panel.type === 'table' && (
@@ -497,13 +500,6 @@ const Board: React.FC<BoardProps> = ({ rows }) => (
     ))}
   </>
 );
-
-const GrafanaLink = () =>
-  _.isEmpty(window.SERVER_FLAGS.grafanaPublicURL) ? null : (
-    <span className="monitoring-header-link">
-      <ExternalLink href={window.SERVER_FLAGS.grafanaPublicURL} text="Grafana UI" />
-    </span>
-  );
 
 const MonitoringDashboardsPage: React.FC<MonitoringDashboardsPageProps> = ({ match }) => {
   const { t } = useTranslation();
@@ -566,13 +562,26 @@ const MonitoringDashboardsPage: React.FC<MonitoringDashboardsPageProps> = ({ mat
         const allVariables = {};
         _.each(data?.templating?.list, (v) => {
           if (v.type === 'query' || v.type === 'interval') {
+            // Look for an option that should be selected by default
+            let value = _.find(v.options, { selected: true })?.value;
+
+            // If no default option was found, see if the "All" option should be the default
+            if (
+              value === undefined &&
+              v.includeAll &&
+              v.current.selected === true &&
+              v.current.value === '$__all'
+            ) {
+              value = MONITORING_DASHBOARDS_VARIABLE_ALL_OPTION_KEY;
+            }
+
             allVariables[v.name] = ImmutableMap({
               includeAll: !!v.includeAll,
               isHidden: v.hide !== 0,
               isLoading: v.type === 'query',
               options: _.map(v.options, 'value'),
               query: v.type === 'query' ? v.query : undefined,
-              value: _.find(v.options, { selected: true })?.value || v.options?.[0]?.value,
+              value: value || v.options?.[0]?.value,
             });
           }
         });
@@ -608,7 +617,7 @@ const MonitoringDashboardsPage: React.FC<MonitoringDashboardsPageProps> = ({ mat
     ? data.rows
     : data?.panels?.reduce((acc, panel) => {
         if (panel.type === 'row' || acc.length === 0) {
-          acc.push(panel);
+          acc.push(_.cloneDeep(panel));
         } else {
           const row = acc[acc.length - 1];
           if (_.isNil(row.panels)) {
@@ -627,9 +636,7 @@ const MonitoringDashboardsPage: React.FC<MonitoringDashboardsPageProps> = ({ mat
       <div className="co-m-nav-title co-m-nav-title--detail">
         <div className="monitoring-dashboards__header">
           <h1 className="co-m-pane__heading">
-            <span>
-              {t('public~Dashboards')} <GrafanaLink />
-            </span>
+            <span>{t('public~Dashboards')}</span>
           </h1>
           <div className="monitoring-dashboards__options">
             <TimespanDropdown />
@@ -655,6 +662,10 @@ const MonitoringDashboardsPage: React.FC<MonitoringDashboardsPageProps> = ({ mat
 };
 
 type TemplateVariable = {
+  current: {
+    selected?: boolean;
+    value?: string;
+  };
   hide: number;
   includeAll: boolean;
   name: string;

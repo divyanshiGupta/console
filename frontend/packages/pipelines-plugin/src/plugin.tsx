@@ -3,28 +3,16 @@ import {
   Plugin,
   ModelDefinition,
   ModelFeatureFlag,
-  NavSection,
-  HrefNavItem,
-  ResourceNSNavItem,
-  ResourceClusterNavItem,
   ResourceListPage,
   ResourceDetailsPage,
   Perspective,
   RoutePage,
   OverviewResourceTab,
-  YAMLTemplate,
   OverviewTabSection,
 } from '@console/plugin-sdk';
 import { NamespaceRedirect } from '@console/internal/components/utils/namespace-redirect';
 import { referenceForModel } from '@console/internal/module/k8s';
 import { FLAG_OPENSHIFT_PIPELINE } from './const';
-import {
-  newPipelineTemplate,
-  newTaskTemplate,
-  newTaskRunTemplate,
-  newPipelineResourceTemplate,
-  newClusterTaskTemplate,
-} from './templates';
 import * as models from './models';
 import {
   pipelinesTopologyPlugin,
@@ -48,16 +36,11 @@ const {
 type ConsumedExtensions =
   | ModelDefinition
   | ModelFeatureFlag
-  | NavSection
-  | HrefNavItem
-  | ResourceClusterNavItem
-  | ResourceNSNavItem
   | ResourceListPage
   | ResourceDetailsPage
   | Perspective
   | RoutePage
   | OverviewResourceTab
-  | YAMLTemplate
   | OverviewTabSection
   | PipelineTopologyConsumedExtensions;
 
@@ -73,74 +56,6 @@ const plugin: Plugin<ConsumedExtensions> = [
     properties: {
       model: PipelineModel,
       flag: FLAG_OPENSHIFT_PIPELINE,
-    },
-  },
-  {
-    type: 'NavItem/ResourceNS',
-    properties: {
-      id: 'pipelines',
-      perspective: 'dev',
-      section: 'resources',
-      insertAfter: 'builds',
-      componentProps: {
-        // t('pipelines-plugin~Pipelines')
-        name: '%pipelines-plugin~Pipelines%',
-        resource: referenceForModel(PipelineModel),
-        testID: 'pipeline-header',
-        'data-quickstart-id': 'qs-nav-pipelines',
-      },
-    },
-    flags: {
-      required: [FLAG_OPENSHIFT_PIPELINE],
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      id: 'pipelines',
-      perspective: 'admin',
-      section: 'pipelines',
-      componentProps: {
-        // t('pipelines-plugin~Pipelines')
-        name: '%pipelines-plugin~Pipelines%',
-        href: '/pipelines',
-        'data-quickstart-id': 'qs-nav-pipelines',
-      },
-    },
-    flags: {
-      required: [FLAG_OPENSHIFT_PIPELINE],
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      id: 'pipelinetasks',
-      perspective: 'admin',
-      section: 'pipelines',
-      componentProps: {
-        // t('pipelines-plugin~Tasks')
-        name: '%pipelines-plugin~Tasks%',
-        href: '/tasks',
-      },
-    },
-    flags: {
-      required: [FLAG_OPENSHIFT_PIPELINE],
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      id: 'pipelinetriggers',
-      perspective: 'admin',
-      section: 'pipelines',
-      componentProps: {
-        // t('pipelines-plugin~Triggers')
-        name: '%pipelines-plugin~Triggers%',
-        href: '/triggers',
-      },
-    },
-    flags: {
-      required: [FLAG_OPENSHIFT_PIPELINE],
     },
   },
   {
@@ -459,41 +374,6 @@ const plugin: Plugin<ConsumedExtensions> = [
             './components/pipelineruns/PipelineRunsPage' /* webpackChunkName: "pipelinerun-page" */
           )
         ).default,
-    },
-  },
-  {
-    type: 'YAMLTemplate',
-    properties: {
-      model: PipelineModel,
-      template: newPipelineTemplate,
-    },
-  },
-  {
-    type: 'YAMLTemplate',
-    properties: {
-      model: TaskModel,
-      template: newTaskTemplate,
-    },
-  },
-  {
-    type: 'YAMLTemplate',
-    properties: {
-      model: TaskRunModel,
-      template: newTaskRunTemplate,
-    },
-  },
-  {
-    type: 'YAMLTemplate',
-    properties: {
-      model: PipelineResourceModel,
-      template: newPipelineResourceTemplate,
-    },
-  },
-  {
-    type: 'YAMLTemplate',
-    properties: {
-      model: ClusterTaskModel,
-      template: newClusterTaskTemplate,
     },
   },
   ...pipelinesTopologyPlugin,

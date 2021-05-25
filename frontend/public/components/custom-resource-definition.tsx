@@ -40,7 +40,10 @@ import { getResourceListPages } from './resource-pages';
 import { DefaultPage } from './default-resource';
 import { GreenCheckCircleIcon } from '@console/shared';
 import { useExtensions, isResourceListPage, ResourceListPage } from '@console/plugin-sdk';
-
+import {
+  ResourceListPage as DynamicResourceListPage,
+  isResourceListPage as isDynamicResourceListPage,
+} from '@console/dynamic-plugin-sdk';
 const { common } = Kebab.factory;
 
 const crdInstancesPath = (crd: CustomResourceDefinitionKind) =>
@@ -49,8 +52,8 @@ const crdInstancesPath = (crd: CustomResourceDefinitionKind) =>
     : `/k8s/cluster/${referenceForCRD(crd)}`;
 
 const instances = (kind: K8sKind, obj: CustomResourceDefinitionKind) => ({
-  // t('custom-resource-definition~View instances')
-  labelKey: 'custom-resource-definition~View instances',
+  // t('public~View instances')
+  labelKey: 'public~View instances',
   href: crdInstancesPath(obj),
 });
 
@@ -80,18 +83,18 @@ const Established: React.FC<{ crd: CustomResourceDefinitionKind }> = ({ crd }) =
   const { t } = useTranslation();
   return crd.status && isEstablished(crd.status.conditions) ? (
     <span>
-      <GreenCheckCircleIcon title={t('custom-resource-definition~true')} />
+      <GreenCheckCircleIcon title={t('public~true')} />
     </span>
   ) : (
     <span>
-      <BanIcon title={t('custom-resource-definition~false')} />
+      <BanIcon title={t('public~false')} />
     </span>
   );
 };
 
 const EmptyVersionsMsg: React.FC<{}> = () => {
   const { t } = useTranslation();
-  return <EmptyBox label={t('custom-resource-definition~CRD versions')} />;
+  return <EmptyBox label={t('public~CRD versions')} />;
 };
 
 const CRDVersionTable: React.FC<CRDVersionProps> = ({ versions }) => {
@@ -120,15 +123,15 @@ const CRDVersionTable: React.FC<CRDVersionProps> = ({ versions }) => {
   const { t } = useTranslation();
   const crdVersionTableHeaders = [
     {
-      title: t('custom-resource-definition~Name'),
+      title: t('public~Name'),
       transforms: [sortable],
     },
     {
-      title: t('custom-resource-definition~Served'),
+      title: t('public~Served'),
       transforms: [sortable],
     },
     {
-      title: t('custom-resource-definition~Storage'),
+      title: t('public~Storage'),
       transforms: [sortable],
     },
   ];
@@ -136,7 +139,7 @@ const CRDVersionTable: React.FC<CRDVersionProps> = ({ versions }) => {
   return versionRows.length > 0 ? (
     <PFTable
       variant={TableVariant.compact}
-      aria-label={t('custom-resource-definition~CRD versions')}
+      aria-label={t('public~CRD versions')}
       cells={crdVersionTableHeaders}
       rows={versionRows}
       onSort={onSort}
@@ -156,7 +159,7 @@ const Details: React.FC<{ obj: CustomResourceDefinitionKind }> = ({ obj: crd }) 
     <>
       <div className="co-m-pane__body">
         <SectionHeading
-          text={t('custom-resource-definition~{{resource}} details', {
+          text={t('public~{{resource}} details', {
             resource: CustomResourceDefinitionModel.label,
           })}
         />
@@ -167,33 +170,25 @@ const Details: React.FC<{ obj: CustomResourceDefinitionKind }> = ({ obj: crd }) 
             </div>
             <div className="col-sm-6">
               <dl className="co-m-pane__details">
-                <dt>{t('custom-resource-definition~Established')}</dt>
+                <dt>{t('public~Established')}</dt>
                 <dd>
                   <Established crd={crd} />
                 </dd>
-                <DetailsItem
-                  label={t('custom-resource-definition~Group')}
-                  obj={crd}
-                  path="spec.group"
-                />
-                <dt>{t('custom-resource-definition~Latest version')}</dt>
+                <DetailsItem label={t('public~Group')} obj={crd} path="spec.group" />
+                <dt>{t('public~Latest version')}</dt>
                 <dd>{getLatestVersionForCRD(crd)}</dd>
-                <DetailsItem
-                  label={t('custom-resource-definition~Scope')}
-                  obj={crd}
-                  path="spec.scope"
-                />
+                <DetailsItem label={t('public~Scope')} obj={crd} path="spec.scope" />
               </dl>
             </div>
           </div>
         </div>
       </div>
       <div className="co-m-pane__body">
-        <SectionHeading text={t('custom-resource-definition~Conditions')} />
+        <SectionHeading text={t('public~Conditions')} />
         <Conditions conditions={crd.status.conditions} />
       </div>
       <div className="co-m-pane__body">
-        <SectionHeading text={t('custom-resource-definition~Versions')} />
+        <SectionHeading text={t('public~Versions')} />
         <CRDVersionTable versions={crd.spec.versions} />
       </div>
     </>
@@ -202,10 +197,14 @@ const Details: React.FC<{ obj: CustomResourceDefinitionKind }> = ({ obj: crd }) 
 
 const Instances: React.FC<InstancesProps> = ({ obj, namespace }) => {
   const resourceListPageExtensions = useExtensions<ResourceListPage>(isResourceListPage);
-  const crdKind = referenceForCRD(obj);
-  const componentLoader = getResourceListPages(resourceListPageExtensions).get(crdKind, () =>
-    Promise.resolve(DefaultPage),
+  const dynamicResourceListPageExtensions = useExtensions<DynamicResourceListPage>(
+    isDynamicResourceListPage,
   );
+  const crdKind = referenceForCRD(obj);
+  const componentLoader = getResourceListPages(
+    resourceListPageExtensions,
+    dynamicResourceListPageExtensions,
+  ).get(crdKind, () => Promise.resolve(DefaultPage));
   return (
     <AsyncComponent
       loader={componentLoader}
@@ -224,31 +223,31 @@ export const CustomResourceDefinitionsList: React.FC<CustomResourceDefinitionsLi
   const CRDTableHeader = () => {
     return [
       {
-        title: t('custom-resource-definition~Name'),
+        title: t('public~Name'),
         sortField: 'spec.names.kind',
         transforms: [sortable],
         props: { className: tableColumnClasses[0] },
       },
       {
-        title: t('custom-resource-definition~Group'),
+        title: t('public~Group'),
         sortField: 'spec.group',
         transforms: [sortable],
         props: { className: tableColumnClasses[1] },
       },
       {
-        title: t('custom-resource-definition~Latest version'),
+        title: t('public~Latest version'),
         sortFunc: 'crdLatestVersion',
         transforms: [sortable],
         props: { className: tableColumnClasses[2] },
       },
       {
-        title: t('custom-resource-definition~Namespaced'),
+        title: t('public~Namespaced'),
         sortField: 'spec.scope',
         transforms: [sortable],
         props: { className: tableColumnClasses[3] },
       },
       {
-        title: t('custom-resource-definition~Established'),
+        title: t('public~Established'),
         props: { className: tableColumnClasses[4] },
       },
       {
@@ -280,9 +279,7 @@ export const CustomResourceDefinitionsList: React.FC<CustomResourceDefinitionsLi
         </TableData>
         <TableData className={tableColumnClasses[2]}>{getLatestVersionForCRD(crd)}</TableData>
         <TableData className={tableColumnClasses[3]}>
-          {namespaced(crd)
-            ? t('custom-resource-definition~Yes')
-            : t('custom-resource-definition~No')}
+          {namespaced(crd) ? t('public~Yes') : t('public~No')}
         </TableData>
         <TableData className={tableColumnClasses[4]}>
           <Established crd={crd} />
@@ -331,7 +328,7 @@ export const CustomResourceDefinitionsDetailsPage: React.FC<CustomResourceDefini
         navFactory.details(Details),
         navFactory.editYaml(),
         {
-          name: t('custom-resource-definition~Instances'),
+          name: t('public~Instances'),
           href: 'instances',
           component: Instances,
         },

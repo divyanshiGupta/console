@@ -3,11 +3,11 @@ import * as React from 'react';
 import { render } from 'react-dom';
 import { Helmet } from 'react-helmet';
 import { linkify } from 'react-linkify';
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import { Route, Router, Switch } from 'react-router-dom';
 // AbortController is not supported in some older browser versions
 import 'abort-controller/polyfill';
-import store from '../redux';
+import store, { applyReduxExtensions } from '../redux';
 import { withTranslation } from 'react-i18next';
 
 import { detectFeatures } from '../actions/features';
@@ -20,19 +20,25 @@ import { history, AsyncComponent, LoadingBox } from './utils';
 import * as UIActions from '../actions/ui';
 import { fetchSwagger, getCachedResources } from '../module/k8s';
 import { receivedResources, watchAPIServices } from '../actions/k8s';
-import { initConsolePlugins } from '../plugins';
+import { pluginStore } from '../plugins';
 // cloud shell imports must come later than features
 import CloudShell from '@console/app/src/components/cloud-shell/CloudShell';
 import CloudShellTab from '@console/app/src/components/cloud-shell/CloudShellTab';
 import DetectPerspective from '@console/app/src/components/detect-perspective/DetectPerspective';
 import DetectNamespace from '@console/app/src/components/detect-namespace/DetectNamespace';
 import { useExtensions } from '@console/plugin-sdk';
-import { useResolvedExtensions } from '@console/dynamic-plugin-sdk/src/api/useResolvedExtensions';
-import { isContextProvider } from '@console/dynamic-plugin-sdk/src/extensions/context-providers';
+import {
+  useResolvedExtensions,
+  isContextProvider,
+  isReduxReducer,
+  isStandaloneRoutePage,
+} from '@console/dynamic-plugin-sdk';
+import { initConsolePlugins } from '@console/dynamic-plugin-sdk/src/runtime/plugin-init';
 import { GuidedTour } from '@console/app/src/components/tour';
-import { isStandaloneRoutePage } from '@console/dynamic-plugin-sdk';
 import QuickStartDrawer from '@console/app/src/components/quick-starts/QuickStartDrawer';
 import ToastProvider from '@console/shared/src/components/toast/ToastProvider';
+import { useTelemetry } from '@console/shared/src/hooks/useTelemetry';
+import { useDebounceCallback } from '@console/shared/src/hooks/debounce';
 import '../i18n';
 import '../vendor.scss';
 import '../style.scss';
@@ -154,36 +160,38 @@ class App_ extends React.PureComponent {
       <>
         <Helmet titleTemplate={`%s · ${productName}`} defaultTitle={productName} />
         <QuickStartDrawer>
-          <ConsoleNotifier location="BannerTop" />
-          <Page
-            header={<Masthead onNavToggle={this._onNavToggle} />}
-            sidebar={
-              <Navigation
-                isNavOpen={isNavOpen}
-                onNavSelect={this._onNavSelect}
-                onPerspectiveSelected={this._onNavSelect}
-              />
-            }
-            skipToContent={
-              <SkipToContent
-                href={`${this.props.location.pathname}${this.props.location.search}#content`}
-              >
-                Skip to Content
-              </SkipToContent>
-            }
-          >
-            <ConnectedNotificationDrawer
-              isDesktop={isDrawerInline}
-              onDrawerChange={this._onNotificationDrawerToggle}
+          <div id="app-content" className="co-m-app__content">
+            <ConsoleNotifier location="BannerTop" />
+            <Page
+              header={<Masthead onNavToggle={this._onNavToggle} />}
+              sidebar={
+                <Navigation
+                  isNavOpen={isNavOpen}
+                  onNavSelect={this._onNavSelect}
+                  onPerspectiveSelected={this._onNavSelect}
+                />
+              }
+              skipToContent={
+                <SkipToContent
+                  href={`${this.props.location.pathname}${this.props.location.search}#content`}
+                >
+                  Skip to Content
+                </SkipToContent>
+              }
             >
-              <AppContents />
-            </ConnectedNotificationDrawer>
-          </Page>
-          <CloudShell />
-          <GuidedTour />
-          <ConsoleNotifier location="BannerBottom" />
+              <ConnectedNotificationDrawer
+                isDesktop={isDrawerInline}
+                onDrawerChange={this._onNotificationDrawerToggle}
+              >
+                <AppContents />
+              </ConnectedNotificationDrawer>
+            </Page>
+            <CloudShell />
+            <GuidedTour />
+            <ConsoleNotifier location="BannerBottom" />
+          </div>
+          <div id="modal-container" role="dialog" aria-modal="true" />
         </QuickStartDrawer>
-        <div id="modal-container" role="dialog" aria-modal="true" />
       </>
     );
 
@@ -205,12 +213,18 @@ class App_ extends React.PureComponent {
 }
 
 const AppWithExtensions = withTranslation()((props) => {
-  const [contextProviderExtensions, resolved] = useResolvedExtensions(isContextProvider);
+  const [reduxReducerExtensions, reducersResolved] = useResolvedExtensions(isReduxReducer);
+  const [contextProviderExtensions, providersResolved] = useResolvedExtensions(isContextProvider);
 
-  return resolved && <App_ contextProviderExtensions={contextProviderExtensions} {...props} />;
+  if (reducersResolved && providersResolved) {
+    applyReduxExtensions(reduxReducerExtensions);
+    return <App_ contextProviderExtensions={contextProviderExtensions} {...props} />;
+  }
+
+  return <LoadingBox />;
 });
 
-initConsolePlugins(store);
+initConsolePlugins(pluginStore, store);
 
 render(<LoadingBox />, document.getElementById('app'));
 
@@ -235,6 +249,41 @@ const AppRouter = () => {
     </Router>
   );
 };
+
+const CaptureTelemetry = React.memo(() => {
+  const fireTelemetryEvent = useTelemetry();
+
+  // notify of identity change
+  const user = useSelector(({ UI }) => UI.get('user'));
+  React.useEffect(() => {
+    if (user.metadata?.uid || user.metadata?.name) {
+      fireTelemetryEvent('identify', { user });
+    }
+    // Only trigger identify event when the user identifier changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.metadata?.uid || user.metadata?.name, fireTelemetryEvent]);
+
+  // notify url change events
+  // Debouncing the url change events so that redirects don't fire multiple events.
+  // Also because some pages update the URL as the user enters a search term.
+  const fireUrlChangeEvent = useDebounceCallback(fireTelemetryEvent);
+  React.useEffect(() => {
+    fireUrlChangeEvent('page', history.location);
+
+    let { pathname, search } = history.location;
+    const unlisten = history.listen((location) => {
+      const { pathname: nextPathname, search: nextSearch } = history.location;
+      if (pathname !== nextPathname || search !== nextSearch) {
+        pathname = nextPathname;
+        search = nextSearch;
+        fireUrlChangeEvent('page', location);
+      }
+    });
+    return () => unlisten();
+  }, [fireUrlChangeEvent]);
+
+  return null;
+});
 
 graphQLReady.onReady(() => {
   const startDiscovery = () => store.dispatch(watchAPIServices());
@@ -307,6 +356,7 @@ graphQLReady.onReady(() => {
   render(
     <React.Suspense fallback={<LoadingBox />}>
       <Provider store={store}>
+        <CaptureTelemetry />
         <ToastProvider>
           <AppRouter />
         </ToastProvider>

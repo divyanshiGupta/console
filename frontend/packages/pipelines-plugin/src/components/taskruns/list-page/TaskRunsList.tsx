@@ -15,10 +15,10 @@ const TaskRunsList: React.FC<TaskRunsListProps> = (props) => {
   return (
     <Table
       {...props}
-      aria-label={TaskRunModel.labelPlural}
+      aria-label={t(TaskRunModel.labelPluralKey)}
       defaultSortField="status.startTime"
       defaultSortOrder={SortByDirection.desc}
-      Header={TaskRunsHeader(props.customData?.showPipelineColumn, t)}
+      Header={TaskRunsHeader(props.customData?.showPipelineColumn)}
       Row={TaskRunsRow}
       virtualize
     />

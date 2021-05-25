@@ -13,15 +13,7 @@ import TaskRuns from '../detail-page-tabs/TaskRuns';
 const menuActions = jest.spyOn(utils, 'useMenuActionsWithUserAnnotation');
 const breadCrumbs = jest.spyOn(hookUtils, 'usePipelinesBreadcrumbsFor');
 type PipelineRunDetailsPageProps = React.ComponentProps<typeof PipelineRunDetailsPage>;
-const i18nNS = 'details-page';
-
-jest.mock('react-i18next', () => {
-  const reactI18next = require.requireActual('react-i18next');
-  return {
-    ...reactI18next,
-    useTranslation: () => ({ t: (key) => key }),
-  };
-});
+const i18nNS = 'public';
 
 describe('PipelineRunDetailsPage:', () => {
   let pipelineRunDetailsPageProps: PipelineRunDetailsPageProps;
@@ -63,7 +55,7 @@ describe('PipelineRunDetailsPage:', () => {
   it('Should contain task runs page', () => {
     const { pages } = wrapper.props();
 
-    const taskRunsPage = pages.find((page) => page.name === 'pipelines-plugin~Task Runs');
+    const taskRunsPage = pages.find((page) => page.name === 'TaskRuns');
     expect(taskRunsPage).toBeDefined();
     expect(taskRunsPage.component).toBe(TaskRuns);
   });

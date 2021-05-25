@@ -2,11 +2,13 @@ import { ValidationObject } from '@console/shared';
 
 import { DiskType } from '../../constants';
 import { CombinedDisk } from '../../k8s/wrapper/vm/combined-disk';
+import { VMIKind } from '../../types';
 import { UIStorageValidation } from '../../types/ui/storage';
 import { VMLikeEntityKind } from '../../types/vmLike';
 import { TemplateValidations } from '../../utils/validations/template/template-validations';
 
 export type StorageSimpleData = {
+  disk?: CombinedDisk;
   name?: string;
   content?: string;
   source?: string;
@@ -27,7 +29,6 @@ export type StorageSimpleDataValidation = {
 };
 
 export type StorageBundle = StorageSimpleData & {
-  disk: CombinedDisk;
   templateValidations?: TemplateValidations;
   diskValidations?: UIStorageValidation;
   type?: DiskType;
@@ -41,6 +42,7 @@ export type VMStorageRowActionOpts = {
 
 export type VMStorageRowCustomData = {
   vmLikeEntity: VMLikeEntityKind;
+  vmi: VMIKind;
   columnClasses: string[];
   isDisabled: boolean;
   pendingChangesDisks?: Set<string>;

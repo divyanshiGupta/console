@@ -19,11 +19,12 @@ interface Configuration extends webpack.Configuration {
 
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const HOT_RELOAD = process.env.HOT_RELOAD || 'true';
 const CHECK_CYCLES = process.env.CHECK_CYCLES || 'false';
+const ANALYZE_BUNDLE = process.env.ANALYZE_BUNDLE || 'false';
 const IS_WDS = process.env.WEBPACK_DEV_SERVER;
 const WDS_PORT = 8080;
 
@@ -226,9 +227,6 @@ const config: Configuration = {
     new CopyWebpackPlugin([
       { from: './packages/local-storage-operator-plugin/locales', to: 'locales' },
     ]),
-    new MomentLocalesPlugin({
-      localesToKeep: ['en', 'ja', 'ko', 'zh-cn'],
-    }),
     extractCSS,
     virtualModules,
     new ConsoleActivePluginsModule(resolvePluginPackages(), virtualModules),
@@ -254,6 +252,17 @@ if (CHECK_CYCLES === 'true') {
       minLengthCycles: 17,
     },
   }).apply(config.plugins);
+}
+
+if (ANALYZE_BUNDLE === 'true') {
+  config.plugins.push(
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'static',
+      reportFilename: 'report.html',
+      // Don't open report in default browser automatically
+      openAnalyzer: false,
+    }),
+  );
 }
 
 /* Production settings */

@@ -7,13 +7,12 @@ import {
   DropdownSeparator,
   DropdownToggle,
 } from '@patternfly/react-core';
-import { useK8sGet } from '@console/internal/components/utils/k8s-get-hook';
-import { getName } from '@console/shared';
-import { ListKind } from 'public/module/k8s';
+import { useK8sWatchResource } from '@console/internal/components/utils/k8s-watch-hook';
+import { useDeepCompareMemoize, getName } from '@console/shared';
 import NamespaceStoreModal from './namespace-store-modal';
-import { NooBaaNamespaceStoreModel } from '../../models';
 import { NamespaceStoreKind } from '../../types';
 import { NamespacePolicyType } from '../../constants/bucket-class';
+import { namespaceStoreResource } from '../../resources';
 
 export const NamespaceStoreDropdown: React.FC<NamespaceStoreDropdownProps> = ({
   id,
@@ -27,23 +26,13 @@ export const NamespaceStoreDropdown: React.FC<NamespaceStoreDropdownProps> = ({
 }) => {
   const { t } = useTranslation();
   const [isOpen, setOpen] = React.useState(false);
-  const [nnsObj, nnsLoaded, nnsErr] = useK8sGet<ListKind<NamespaceStoreKind>>(
-    NooBaaNamespaceStoreModel,
-    null,
-    namespace,
-  );
-  const [nsName, setNSName] = React.useState('');
-  const [dropdownItems, setDropdownItems] = React.useState([]);
-  const nnsList = nnsLoaded && !nnsErr ? nnsObj.items : [];
-  const handleDropdownChange = React.useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      setNSName(e.currentTarget.id);
-      onChange(nnsList.find((nns) => nns?.metadata?.name === e.currentTarget.id));
-    },
-    [nnsList, onChange],
-  );
+  const [dropdownItems, setDropdownItems] = React.useState<JSX.Element[]>([]);
+
+  const [nnsData, , nnsLoadErr] = useK8sWatchResource<NamespaceStoreKind[]>(namespaceStoreResource);
+  const noobaaNamespaceStores: NamespaceStoreKind[] = useDeepCompareMemoize(nnsData, true);
+
   React.useEffect(() => {
-    const nnsDropdownItems = nnsList.reduce(
+    const nnsDropdownItems = noobaaNamespaceStores.reduce(
       (res, nns) => {
         const name = getName(nns);
         res.push(
@@ -55,7 +44,11 @@ export const NamespaceStoreDropdown: React.FC<NamespaceStoreDropdownProps> = ({
               namespacePolicy === NamespacePolicyType.MULTI &&
               !enabledItems.some((itemName) => itemName === name)
             }
-            onClick={handleDropdownChange}
+            onClick={(e) =>
+              onChange(
+                noobaaNamespaceStores.find((ns) => ns?.metadata?.name === e.currentTarget.id),
+              )
+            }
             data-test={name}
             description={t('ceph-storage-plugin~Provider {{provider}} | Region: {{region}}', {
               provider: nns?.spec?.type,
@@ -83,21 +76,18 @@ export const NamespaceStoreDropdown: React.FC<NamespaceStoreDropdownProps> = ({
     );
     setDropdownItems(nnsDropdownItems);
   }, [
-    nnsObj,
-    nnsLoaded,
-    nnsErr,
-    nnsList,
+    noobaaNamespaceStores,
     t,
-    handleDropdownChange,
     namespace,
     creatorDisabled,
     namespacePolicy,
     enabledItems,
+    onChange,
   ]);
 
   return (
     <div className={className}>
-      {nnsErr && (
+      {nnsLoadErr && (
         <Alert
           className="nb-create-bc-step-page--danger"
           variant="danger"
@@ -111,13 +101,13 @@ export const NamespaceStoreDropdown: React.FC<NamespaceStoreDropdownProps> = ({
           <DropdownToggle
             id="nns-dropdown-id"
             isDisabled={
-              !!nnsErr ||
+              !!nnsLoadErr ||
               (namespacePolicy === NamespacePolicyType.MULTI && enabledItems?.length === 0)
             }
             data-test="nns-dropdown-toggle"
             onToggle={() => setOpen(!isOpen)}
           >
-            {selectedKey || nsName || t('ceph-storage-plugin~Select a namespace store')}
+            {selectedKey || t('ceph-storage-plugin~Select a namespace store')}
           </DropdownToggle>
         }
         isOpen={isOpen}
@@ -134,7 +124,7 @@ type NamespaceStoreDropdownProps = {
   namespace: string;
   onChange?: (NamespaceStoreKind) => void;
   className?: string;
-  selectedKey?: string;
+  selectedKey: string;
   enabledItems?: string[];
   namespacePolicy?: NamespacePolicyType;
   creatorDisabled?: boolean;

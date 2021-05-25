@@ -17,6 +17,8 @@ export const topologySidePane = {
       .get(topologyPO.sidePane.tabName)
       .contains(tabName)
       .should('be.visible'),
+  verifyActionsDropDown: () => cy.get(topologyPO.sidePane.actionsDropDown).should('be.visible'),
+  clickActionsDropDown: () => cy.get(topologyPO.sidePane.actionsDropDown).click(),
   selectTab: (tabName: string) =>
     cy
       .get(topologyPO.sidePane.tabName)
@@ -56,6 +58,19 @@ export const topologySidePane = {
       .get('a')
       .contains('Add Health Checks')
       .click(),
+  scaleUpPodCount: () =>
+    cy
+      .get(topologyPO.sidePane.podScale)
+      .eq(0)
+      .click(),
+  scaleDownPodCount: () =>
+    cy
+      .get(topologyPO.sidePane.podScale)
+      .eq(1)
+      .click(),
+  verifyPodText: (scaleNumber: string) =>
+    cy.get(topologyPO.sidePane.podText).should('contain.text', scaleNumber),
+  verifyHealthCheckAlert: () => cy.get(topologyPO.sidePane.healthCheckAlert).should('be.visible'),
   verifyWorkloadInAppSideBar: (workloadName: string) =>
     cy
       .get(topologyPO.sidePane.dialog)
@@ -67,7 +82,7 @@ export const topologySidePane = {
   },
   verifyLabel: (labelName: string) => {
     cy.get(topologyPO.sidePane.detailsTab.labels).should('be.visible');
-    cy.byButtonText('Edit').click();
+    cy.get(topologyPO.sidePane.detailsTab.labelsEdit).click();
     modal.shouldBeOpened();
     cy.get('span.tag-item__content')
       .contains(labelName)
@@ -105,8 +120,7 @@ export const topologySidePane = {
   verifyPipelineRuns: () => {
     cy.get(topologyPO.sidePane.resourcesTab.pipelineRuns).should('be.visible');
   },
-  selectResource: (opt: resources | string) => {
-    const namespace = Cypress.env('namespace');
+  selectResource: (opt: resources | string, namespace: string) => {
     switch (opt) {
       case 'Deployment Configs':
       case resources.DeploymentConfigs: {

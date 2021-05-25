@@ -1,4 +1,5 @@
 {
+  "VolumeSnapshotContents": "VolumeSnapshotContents",
   "Edit resource limits": "Edit resource limits",
   "Add Health Checks": "Add Health Checks",
   "Edit Health Checks": "Edit Health Checks",
@@ -6,6 +7,7 @@
   "Edit HorizontalPodAutoscaler": "Edit HorizontalPodAutoscaler",
   "Remove HorizontalPodAutoscaler": "Remove HorizontalPodAutoscaler",
   "Access Mode": "Access Mode",
+  "Updating cluster to {{version}}": "Updating cluster to {{version}}",
   "API Servers": "API Servers",
   "Controller Managers": "Controller Managers",
   "Schedulers": "Schedulers",
@@ -28,6 +30,7 @@
   "Used capacity": "Used capacity",
   "Access mode": "Access mode",
   "Volume mode": "Volume mode",
+  "Save": "Save",
   "Restore as new PVC": "Restore as new PVC",
   "When restore action for snapshot <1>{{snapshotName}}</1> is finished a new crash-consistent PVC copy will be created.": "When restore action for snapshot <1>{{snapshotName}}</1> is finished a new crash-consistent PVC copy will be created.",
   "Volume Mode": "Volume Mode",
@@ -41,7 +44,7 @@
   "PersistentVolumeClaim details": "PersistentVolumeClaim details",
   "StorageClass": "StorageClass",
   "Create VolumeSnapshot": "Create VolumeSnapshot",
-  "Creating snapshot for claim <1>{resourceName}</1>": "Creating snapshot for claim <1>{resourceName}</1>",
+  "Creating snapshot for claim <1>{pvcName}</1>": "Creating snapshot for claim <1>{pvcName}</1>",
   "PersistentVolumeClaim": "PersistentVolumeClaim",
   "Snapshot Class": "Snapshot Class",
   "Create": "Create",
@@ -49,6 +52,7 @@
   "VolumeSnapshotClass details": "VolumeSnapshotClass details",
   "Driver": "Driver",
   "Deletion policy": "Deletion policy",
+  "Details": "Details",
   "VolumeSnapshotContent details": "VolumeSnapshotContent details",
   "VolumeSnapshot": "VolumeSnapshot",
   "VolumeSnapshotClass": "VolumeSnapshotClass",
@@ -64,6 +68,5 @@
   "Cluster": "Cluster",
   "Control Plane": "Control Plane",
   "Control Plane status": "Control Plane status",
-  "Cluster operators": "Cluster operators",
-  "VolumeSnapshotContents": "VolumeSnapshotContents"
+  "Cluster operators": "Cluster operators"
 }

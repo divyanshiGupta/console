@@ -29,12 +29,21 @@ export const pipelineBuilderPO = {
     sidePane: {
       dialog: 'div.odc-sidebar',
       displayName: '#task-name',
-      inputResource: '.odc-task-sidebar__resource [data-test-id="dropdown-button"]',
+      inputResource: 'select[id*="tasks-0-resources-inputs-0-resource-field"]',
       workSpace: '.odc-task-sidebar__workspace [data-test-id="dropdown-button"] span',
+      parameterUrl: '[id$="tasks-0-params-0-value-field"]',
+      parameterUrlHelper: '[id$="tasks-0-params-0-value-field-helper"]',
+      parameterRevision: '[id$="tasks-0-params-1-value-field"]',
+      parameterRevisionHelper: '[id$="tasks-0-params-1-value-field-helper"]',
       imageName: '#IMAGE',
       script: '#SCRIPT',
       args: '#ARGS-0',
       actions: '[data-test-id="actions-menu-button"]',
+      workspaces: '#form-dropdown-formData-tasks-0-workspaces-0-workspace-field',
+    },
+    addWorkspaces: {
+      name: '[id$="workspaces-0-name-field"]',
+      optionalWorkspace: '#form-checkbox-formData-workspaces-0-optional-field',
     },
   },
   yamlView: {
@@ -60,24 +69,16 @@ export const pipelineBuilderPO = {
     cancel: '[data-test-id="reset-button"]',
     yamlEditor: '[data-mode-id="yaml"]',
     samples: {
-      s2iPipelineWithWorkspace:
-        'div.osc-yaml-editor__sidebar ol li:nth-child(3) > button:nth-child(3)',
-      dockerPipelineWithResource:
-        'div.osc-yaml-editor__sidebar ol li:nth-child(2) > button:nth-child(3)',
-      dockerBuildAndDeployPipeline:
-        'div.osc-yaml-editor__sidebar ol li:nth-child(1) > button:nth-child(3)',
-      simplePipeline: 'div.osc-yaml-editor__sidebar ol li:nth-child(4) > button:nth-child(3)',
-      s2iPipelineWithResource:
-        'div.osc-yaml-editor__sidebar ol li:nth-child(5) > button:nth-child(3)',
+      sidebar: '[data-test="resource-sidebar"]',
     },
   },
 };
 
 export const pipelineDetailsPO = {
   title: '[data-test-section-heading="Pipeline details"]',
-  detailsTab: '[data-test-id="horizontal-link-details-page~Details"]',
+  detailsTab: '[data-test-id$="Details"]',
   metricsTab: '[data-test-id="horizontal-link-Metrics"]',
-  yamlTab: '[data-test-id="horizontal-link-details-page~YAML"]',
+  yamlTab: '[data-test-id$="YAML"]',
   pipelineRunsTab: '[data-test-id="horizontal-link-Pipeline Runs"]',
   parametersTab: '[data-test-id="horizontal-link-Parameters"]',
   resourcesTab: '[data-test-id="horizontal-link-Resources"]',
@@ -101,6 +102,7 @@ export const pipelineDetailsPO = {
       annotations: '[data-test-selector="details-item-value__Annotations"]',
       createdAt: '[data-test-selector="details-item-value__Created at"]',
       owner: '[data-test-selector="details-item-value__Owner"]',
+      workspace: '[data-test-id^="workspace-definition"] dd',
     },
     sections: {
       triggerTemplates: '.odc-trigger-template-list',
@@ -123,8 +125,8 @@ export const pipelineDetailsPO = {
 
 export const triggerTemplateDetailsPO = {
   title: '[data-test-section-heading="Trigger Template details"]',
-  detailsTab: '[data-test-id="horizontal-link-details-page~Details"]',
-  yamlTab: '[data-test-id="horizontal-link-details-page~YAML"]',
+  detailsTab: '[data-test-id="horizontal-link-public~Details"]',
+  yamlTab: '[data-test-id="horizontal-link-public~YAML"]',
   details: {
     pipelinesIcon: '[title="Pipeline"]',
     eventListenerLink: '[data-test-id^="event-listener-"]',
@@ -162,15 +164,20 @@ export const clusterTriggerBindingDetailsPO = {
 
 export const pipelineRunDetailsPO = {
   logsTab: '[data-test-id="horizontal-link-Logs"]',
-  yamlTab: '[data-test-id="horizontal-link-details-page~YAML"]',
-  detailsTab: '[data-test-id="horizontal-link-details-page~Details"]',
+  yamlTab: '[data-test-id$="YAML"]',
+  detailsTab: '[data-test-id$="Details"]',
   taskRunsTab: '[data-test-id="horizontal-link-Task Runs"]',
-  eventsTab: '[data-test-id="horizontal-link-details-page~Events"]',
+  eventsTab: '[data-test-id$="Events"]',
   pipelineRunStatus: 'h1 [data-test="status-text"]',
   details: {
     pipelineLink: '[data-test-id="git-pipeline-events"]',
-    sectionTitle: '[data-test-section-heading="Pipeline Run details"]',
+    sectionTitle: '[data-test-section-heading="PipelineRun details"]',
     pipelineRunDetails: 'div dl',
+    workspacesSection: '[data-test-id="workspace-resources-section"]',
+    workspacesResources: {
+      volumeClaimTemplateResources: '[data-test-id="volumeClaimTemplate-resources-section"]',
+      emptyDirectory: '[data-test-id="empty-directory-workspace"]',
+    },
   },
   yaml: {
     yamlPage: '[data-mode-id="yaml"]',
@@ -202,6 +209,7 @@ export const pipelineRunsPO = {
 export const pipelinesPO = {
   createPipeline: '#yaml-create',
   search: 'input[data-test-id="item-filter"]',
+  emptyMessage: '[data-test="empty-message"]',
   pipelinesTable: {
     table: 'div[role="grid"]',
     pipelineName: 'tr td:nth-child(1)',
@@ -229,11 +237,19 @@ export const pipelinesPO = {
   },
   startPipeline: {
     sectionTitle: 'h2.odc-form-section__heading',
-    gitResourceDropdown: '.odc-pipeline-resource-dropdown button',
+    gitResourceDropdown: '[id*="dropdown-resources-0"]',
     gitUrl: '#form-input-resources-0-data-params-url-field',
     revision: '#form-input-resources-0-data-params-revision-field',
     sharedWorkspace: '#form-dropdown-workspaces-0-type-field',
+    emptyDirectoryInfo: '[aria-label="Info Alert"]',
     start: '#confirm-action',
+    workspaces: {
+      workspaceType: '[id$="workspaces-0-type-field"]',
+      emptyDirectoryInfo: '.pf-u-screen-reader',
+      configMap: '.odc-multiple-key-selector button',
+      secret: '.odc-multiple-key-selector button',
+      pvc: '[id$=persistentVolumeClaim-claimName-field]',
+    },
     secretForm: '.odc-secret-form',
     advancedOptions: {
       secretFormTitle: 'h1.odc-secret-form__title',

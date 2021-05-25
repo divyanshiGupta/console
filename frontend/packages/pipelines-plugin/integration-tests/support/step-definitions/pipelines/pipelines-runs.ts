@@ -12,10 +12,12 @@ import {
   topologyPage,
   topologySidePane,
   navigateTo,
+  app,
 } from '@console/dev-console/integration-tests/support/pages';
 import { modal } from '../../../../../integration-tests-cypress/views/modal';
 import { pipelineRunDetailsPO, pipelinesPO } from '../../page-objects/pipelines-po';
 import { actionsDropdownMenu } from '../../pages/functions/common';
+import { pipelineBuilderText } from '../../constants';
 
 Given(
   'pipeline {string} consists of task {string} with one git resource',
@@ -31,15 +33,9 @@ When('user fills the details in Start Pipeline popup', () => {
 });
 
 When('user enters git url as {string} in start pipeline modal', (gitUrl: string) => {
-  cy.get('.modal-body-content').then(($modal) => {
-    if ($modal.find(pipelinesPO.startPipeline.gitResourceDropdown).length) {
-      cy.get(pipelinesPO.startPipeline.gitResourceDropdown).click();
-      cy.get('[role="option"]')
-        .first()
-        .click();
-    }
-  });
-  startPipelineInPipelinesPage.enterGitUrl(gitUrl);
+  modal.shouldBeOpened();
+  app.waitForLoad();
+  startPipelineInPipelinesPage.verifyGitRepoUrlAndEnterGitUrl(gitUrl);
 });
 
 When('user enters revision as {string} in start pipeline modal', (revision: string) => {
@@ -368,3 +364,72 @@ Then('user is able to see expanded logs page', () => {
 When('user clicks Start LastRun from topology side bar', () => {
   topologySidePane.clickStartLastRun();
 });
+
+When('user navigates to Workspaces section', () => {
+  cy.get(pipelinesPO.startPipeline.sectionTitle)
+    .contains('Workspaces')
+    .scrollIntoView()
+    .should('be.visible');
+});
+
+When(
+  'user clicks on {string} workspace dropdown with Empty Directory selected by default',
+  (workspaceName: string) => {
+    cy.get('.modal-content')
+      .contains(workspaceName)
+      .should('be.visible');
+    cy.get(pipelinesPO.startPipeline.sharedWorkspace)
+      .find('span')
+      .should('contain.text', 'Empty Directory');
+    cy.get(pipelinesPO.startPipeline.emptyDirectoryInfo)
+      .find('h4')
+      .should('contain.text', pipelineBuilderText.formView.startPipeline.EmptyDirectoryInfoMessage);
+    cy.get(pipelinesPO.startPipeline.sharedWorkspace).click();
+  },
+);
+
+When('user selects {string} option from workspace dropdown', (workspaceType: string) => {
+  cy.get(pipelinesPO.startPipeline.sectionTitle)
+    .contains('Workspaces')
+    .scrollIntoView()
+    .should('be.visible');
+  cy.selectByDropDownText(pipelinesPO.startPipeline.sharedWorkspace, workspaceType);
+});
+
+When('user clicks Show VolumeClaimTemplate options', () => {
+  cy.get('button')
+    .contains('Show VolumeClaimTemplate options')
+    .click();
+});
+
+Then(
+  'user will see PVC Workspace {string} mentioned in the VolumeClaimTemplate Resources section of Pipeline Run Details page',
+  (workspace: string) => {
+    cy.get(pipelineRunDetailsPO.details.workspacesResources.volumeClaimTemplateResources).should(
+      'be.visible',
+    );
+    cy.log(`${workspace} is visible`);
+  },
+);
+
+When('user clicks on Start', () => {
+  modal.submit();
+});
+
+Then(
+  'user sees option Empty Directory, Config Map, Secret, PersistentVolumeClaim, VolumeClaimTemplate',
+  () => {
+    const options = [
+      'Empty Directory',
+      'Config Map',
+      'Secret',
+      'PersistentVolumeClaim',
+      'VolumeClaimTemplate',
+    ];
+    cy.byLegacyTestID('dropdown-menu').each(($el) => {
+      expect(options).toContain($el.text());
+    });
+    modal.cancel();
+    modal.shouldBeClosed();
+  },
+);

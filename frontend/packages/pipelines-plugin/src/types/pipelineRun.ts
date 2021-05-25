@@ -1,17 +1,24 @@
 import { K8sResourceCommon, ObjectMetadata } from '@console/internal/module/k8s';
 import { PipelineKind, PipelineSpec } from './pipeline';
-import { TektonResultsRun } from './coreTekton';
+import { TektonResultsRun, TektonTaskSpec } from './coreTekton';
 
 export type PLRTaskRunStep = {
   container: string;
-  imageID: string;
+  imageID?: string;
   name: string;
+  waiting?: {
+    reason: string;
+  };
+  running?: {
+    startedAt: string;
+  };
   terminated?: {
     containerID: string;
     exitCode: number;
     finishedAt: string;
     reason: string;
     startedAt: string;
+    message?: string;
   };
 };
 
@@ -24,6 +31,8 @@ export type PLRTaskRunData = {
     podName: string;
     startTime: string;
     steps?: PLRTaskRunStep[];
+    taskSpec?: TektonTaskSpec;
+    taskResults?: { name: string; value: string }[];
   };
 };
 
@@ -126,7 +135,7 @@ export type PipelineRunKind = K8sResourceCommon & {
     serviceAccountName?: string;
     timeout?: string;
     // Only used in a single case - cancelling a pipeline; should not be copied between PLRs
-    status?: 'PipelineRunCancelled';
+    status?: 'PipelineRunCancelled' | 'PipelineRunPending';
   };
   status?: {
     succeededCondition?: string;
